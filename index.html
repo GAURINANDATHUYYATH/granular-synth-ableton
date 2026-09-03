@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Granular — grain synthesis engine</title>
+<link rel="stylesheet" href="css/granular-synth-engine.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <h1>GRANULAR</h1>
+    </div>
+    <div class="file-info">
+      <span id="file-name">no sources loaded</span>
+      <span id="status" class="status-text"></span>
+    </div>
+    <div class="master">
+      <label for="master-volume">OUT</label>
+      <input type="range" id="master-volume" min="0" max="100" value="70">
+    </div>
+  </header>
+
+  <div class="sources-bar">
+    <label class="bar-btn" for="file-input">+ ADD</label>
+    <button id="record-btn" class="bar-btn record" type="button">● REC</button>
+    <div id="chips" class="chips"></div>
+    <input type="file" id="file-input" accept="audio/*" multiple hidden>
+  </div>
+  <div class="sources-hint">click a source to include or exclude it from the mix · the ring around a chip means it's live</div>
+
+  <div class="stage" id="stage">
+    <label class="dropzone" id="dropzone" for="file-input">
+      <div class="dropzone-icon">≈</div>
+      <p>Drop audio files here, or click to browse</p>
+    </label>
+    <canvas id="wave-canvas" class="wave-canvas"></canvas>
+    <canvas id="overlay-canvas" class="overlay-canvas"></canvas>
+  </div>
+
+  <div class="transport">
+    <button id="play-btn" class="play-btn" disabled>▶ PLAY</button>
+    <span class="hint">drag knobs vertically to adjust · double-click to reset · scroll to fine-tune</span>
+  </div>
+
+  <div class="controls">
+
+    <section class="group">
+      <h2 class="group-title">SOURCE</h2>
+      <div class="knob-row">
+        <div class="knob-unit">
+          <div class="knob" id="knob-position" tabindex="0" role="slider" aria-label="Position"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">POSITION</div>
+          <div class="knob-value" id="val-position">40%</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-scan" tabindex="0" role="slider" aria-label="Scan speed"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">SCAN</div>
+          <div class="knob-value" id="val-scan">0.00×/s</div>
+        </div>
+        <div class="seg-unit wide">
+          <div class="seg" id="scanmode-seg">
+            <button class="seg-btn active" data-mode="linear">LIN</button>
+            <button class="seg-btn" data-mode="sine">SINE</button>
+            <button class="seg-btn" data-mode="wander">WANDER</button>
+          </div>
+          <div class="knob-label">SCAN MODE</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title">GRAIN</h2>
+      <div class="knob-row">
+        <div class="knob-unit">
+          <div class="knob" id="knob-size" tabindex="0" role="slider" aria-label="Grain size"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">SIZE</div>
+          <div class="knob-value" id="val-size">60 ms</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-density" tabindex="0" role="slider" aria-label="Density"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">DENSITY</div>
+          <div class="knob-value" id="val-density">12/s</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-pitch" tabindex="0" role="slider" aria-label="Pitch"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">PITCH</div>
+          <div class="knob-value" id="val-pitch">0 st</div>
+        </div>
+        <div class="select-unit">
+          <select id="window-select" class="native-select">
+            <option value="hann" selected>SMOOTH</option>
+            <option value="rise">RISE</option>
+            <option value="fall">FALL</option>
+            <option value="noise">NOISE</option>
+            <option value="tri">TRI</option>
+            <option value="rect">RECT</option>
+          </select>
+          <div class="knob-label">SHAPE</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-spike" tabindex="0" role="slider" aria-label="Spike"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">SPIKE</div>
+          <div class="knob-value" id="val-spike">0%</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-reverse" tabindex="0" role="slider" aria-label="Reverse chance"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">REVERSE</div>
+          <div class="knob-value" id="val-reverse">0%</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title">FM</h2>
+      <p class="group-note">Modulates each grain's pitch with a sine oscillator sampled at grain onset.</p>
+      <div class="knob-row">
+        <div class="knob-unit">
+          <div class="knob" id="knob-fmrate" tabindex="0" role="slider" aria-label="FM rate"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">RATE</div>
+          <div class="knob-value" id="val-fmrate">0 Hz</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-fmdepth" tabindex="0" role="slider" aria-label="FM depth"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">DEPTH</div>
+          <div class="knob-value" id="val-fmdepth">0 st</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title">FLUXUS</h2>
+      <p class="group-note">Random per-grain muting and level variation, à la Henke's "Fluxus".</p>
+      <div class="knob-row">
+        <div class="knob-unit">
+          <div class="knob" id="knob-fluxmute" tabindex="0" role="slider" aria-label="Fluxus mute chance"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">MUTE</div>
+          <div class="knob-value" id="val-fluxmute">0%</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-fluxlevel" tabindex="0" role="slider" aria-label="Fluxus level variation"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">FLUX</div>
+          <div class="knob-value" id="val-fluxlevel">0%</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title">VARIATION</h2>
+      <div class="knob-row">
+        <div class="knob-unit">
+          <div class="knob" id="knob-jitter" tabindex="0" role="slider" aria-label="Position jitter"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">JITTER</div>
+          <div class="knob-value" id="val-jitter">15%</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-spray" tabindex="0" role="slider" aria-label="Spray"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">SPRAY</div>
+          <div class="knob-value" id="val-spray">10 ms</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-pan" tabindex="0" role="slider" aria-label="Pan spread"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">PAN</div>
+          <div class="knob-value" id="val-pan">40%</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title">FILTER</h2>
+      <p class="group-note">Two multimode filters in series, shaping the grain stream before it hits reverb/delay.</p>
+      <div class="knob-row">
+        <div class="select-unit">
+          <select id="filter1-type" class="native-select">
+            <option value="lowpass" selected>LP</option>
+            <option value="highpass">HP</option>
+            <option value="bandpass">BP</option>
+            <option value="notch">NOTCH</option>
+          </select>
+          <div class="knob-label">F1 TYPE</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-filter1cutoff" tabindex="0" role="slider" aria-label="Filter 1 cutoff"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">F1 CUTOFF</div>
+          <div class="knob-value" id="val-filter1cutoff">20000 Hz</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-filter1res" tabindex="0" role="slider" aria-label="Filter 1 resonance"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">F1 RES</div>
+          <div class="knob-value" id="val-filter1res">0.7</div>
+        </div>
+        <div class="select-unit">
+          <select id="filter2-type" class="native-select">
+            <option value="lowpass" selected>LP</option>
+            <option value="highpass">HP</option>
+            <option value="bandpass">BP</option>
+            <option value="notch">NOTCH</option>
+          </select>
+          <div class="knob-label">F2 TYPE</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-filter2cutoff" tabindex="0" role="slider" aria-label="Filter 2 cutoff"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">F2 CUTOFF</div>
+          <div class="knob-value" id="val-filter2cutoff">20000 Hz</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-filter2res" tabindex="0" role="slider" aria-label="Filter 2 resonance"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">F2 RES</div>
+          <div class="knob-value" id="val-filter2res">0.7</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title">ENVELOPE</h2>
+      <p class="group-note">ADSR applied to the whole grain stream on PLAY (attack → decay → sustain) and STOP (release).</p>
+      <div class="knob-row">
+        <div class="knob-unit">
+          <div class="knob" id="knob-attack" tabindex="0" role="slider" aria-label="Attack"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">ATTACK</div>
+          <div class="knob-value" id="val-attack">10 ms</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-decay" tabindex="0" role="slider" aria-label="Decay"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">DECAY</div>
+          <div class="knob-value" id="val-decay">150 ms</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-sustain" tabindex="0" role="slider" aria-label="Sustain"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">SUSTAIN</div>
+          <div class="knob-value" id="val-sustain">100%</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-release" tabindex="0" role="slider" aria-label="Release"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">RELEASE</div>
+          <div class="knob-value" id="val-release">300 ms</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title">SPACE</h2>
+      <div class="knob-row">
+        <div class="knob-unit">
+          <div class="knob" id="knob-reverb" tabindex="0" role="slider" aria-label="Reverb"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">REVERB</div>
+          <div class="knob-value" id="val-reverb">20%</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-delay" tabindex="0" role="slider" aria-label="Delay amount"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">DELAY</div>
+          <div class="knob-value" id="val-delay">0%</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-delaytime" tabindex="0" role="slider" aria-label="Delay time"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">TIME</div>
+          <div class="knob-value" id="val-delaytime">250 ms</div>
+        </div>
+        <div class="knob-unit">
+          <div class="knob" id="knob-feedback" tabindex="0" role="slider" aria-label="Delay feedback"><div class="knob-ring"></div><div class="knob-face"></div><div class="knob-pointer-wrap"><div class="knob-pointer"></div></div></div>
+          <div class="knob-label">FEEDBACK</div>
+          <div class="knob-value" id="val-feedback">35%</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="javascript/granular-synth-engine.js"></script>
+</body>
+</html>
