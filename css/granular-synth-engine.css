@@ -156,6 +156,17 @@
   .ideas li{ margin:10px 0; padding-left:4px; }
   .ideas strong{ color:var(--text); }
 
+  @media (min-width: 641px) and (max-width: 900px){
+    body{ padding:24px 20px 48px; }
+    .app{ max-width:880px; }
+    .topbar{ gap:12px; }
+    .file-info{ flex:1 1 220px; }
+    .controls{ gap:24px; }
+    .group{ flex:1 1 300px; min-width:0; }
+    .knob-row{ gap:18px; }
+    .documentation,.ideas{ padding:22px 24px; }
+  }
+
   @media (max-width: 640px){
     body{ padding:16px 12px 36px; }
     .app{ max-width:100%; }
