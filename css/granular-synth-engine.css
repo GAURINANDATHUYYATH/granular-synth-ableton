@@ -147,6 +147,10 @@
   .documentation li{ padding-left:4px; margin:4px 0; }
   .documentation strong{ color:var(--text); }
   .documentation-copy{ white-space:pre-wrap; }
+  .documentation-heading{
+    display:block; margin:22px 0 8px; color:var(--text);
+    font-size:18px; font-weight:700; letter-spacing:.1em; line-height:1.3;
+  }
   .ideas{
     margin-top:24px; padding:24px 26px; background:var(--bg-panel);
     border:1px solid var(--border); border-radius:10px; color:var(--text-dim);
@@ -190,6 +194,7 @@
     .controls{ display:block; margin-top:12px; padding-top:14px; }
     .documentation{ margin-top:28px; padding:20px 16px; font-size:12px; line-height:1.6; }
     .documentation h2{ font-size:16px; }
+    .documentation-heading{ font-size:16px; }
     .ideas{ margin-top:20px; padding:20px 16px; font-size:12px; line-height:1.6; }
     .ideas h2{ font-size:16px; }
     .group{ min-width:0; margin-bottom:26px; }
