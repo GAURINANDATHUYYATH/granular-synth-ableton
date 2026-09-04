@@ -146,6 +146,7 @@
   .documentation ol,.documentation ul{ margin:8px 0 12px; padding-left:24px; }
   .documentation li{ padding-left:4px; margin:4px 0; }
   .documentation strong{ color:var(--text); }
+  .documentation-copy{ white-space:pre-wrap; }
   .ideas{
     margin-top:24px; padding:24px 26px; background:var(--bg-panel);
     border:1px solid var(--border); border-radius:10px; color:var(--text-dim);
