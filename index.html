@@ -69,6 +69,8 @@
           </div>
           <div class="knob-label">SCAN MODE</div>
         </div>
+
+        
       </div>
     </section>
 
@@ -268,6 +270,28 @@
     </section>
 
   </div>
+<section class="documentation" aria-labelledby="documentation-title">
+          <h2 id="documentation-title">GRANULAR SYNTHESIS</h2>
+          <p>In this method an already existing audio sample is broken down into tiny, microscopic pieces called grains. These grains are re-arranged by overlapping, stacked or randomized to create brand-new textures, tones or ambient soundscapes.</p>
+          <h3>GRANULAR SYNTHESISER</h3>
+          <p>It is either software or hardware capable of performing granular synthesis. It can turn any audio file into an instrument that you can play on a keyboard. While a traditional synthesizer can only generate basic sound waves like sine and square waves, a granular synthesizer uses an audio sample as its engine.</p>
+          <h3>DIFFERENT TYPES OF GRANULAR SYNTHESISERS</h3>
+          <ol><li><strong>Sample based:</strong> Grains are pulled from an audio file loaded inside the synthesizer.</li><li><strong>Cloud/real time:</strong> Grains are pulled from a live input as it is happening; no pre-recorded audio file is used.</li><li><strong>Physical/hardware granular units:</strong> Dedicated pedals and hardware synthesizers perform the same process outside software.</li></ol>
+          <h3>WHERE A GRANULAR SYNTHESISER IS USED</h3>
+          <ol><li>Ambient and experimental music production.</li><li>Sound design for film and games, turning a single recorded sound effect into an evolving texture.</li><li>Glitch and IDM-style electronic music.</li></ol>
+          <h3>HOW THE GRANULAR-SYNTHESISER-ENGINE WORKS</h3>
+          <p>Any sound uploaded into the granular synthesizer engine undergoes granular synthesis.</p>
+          <p><strong>Position:</strong> Marks where the grains are in the source audio.</p><p><strong>Scan:</strong> Moves through the sound so it evolves continuously instead of looping the same fragment forever.</p>
+          <ul><li><strong>Linear:</strong> Moves at a constant speed.</li><li><strong>Sine:</strong> Moves like a pendulum.</li><li><strong>Wander:</strong> Moves unpredictably.</li></ul>
+          <p><strong>Grain:</strong> The microsegment of the source sound. Grain size can range from large (400 ms) to small (10 ms).</p>
+          <ul><li><strong>Size:</strong> The length of each grain. Large grains sound smoother and more recognizable; small grains can sound granular, glitchy, buzzy or noisy.</li><li><strong>Density:</strong> The number of grains fired per second. Low density produces individual blips; high density creates a thick, continuous blur.</li><li><strong>Pitch:</strong> How high or low each grain sounds, measured in semitones.</li><li><strong>Shape:</strong> Controls each grain's fade curve. Smooth fades symmetrically, Rise swells then cuts off, Fall starts loud and fades away, Noise adds randomness, and TRI/RECT provide simple geometric fades.</li><li><strong>Spike:</strong> Controls the intensity of the selected shape.</li><li><strong>Reverse:</strong> Sets the probability of grains playing backwards: 0% is normal playback and 100% reverses every grain.</li></ul>
+          <h3>FM (FREQUENCY MODULATION)</h3><p>One oscillating signal modulates the pitch of another.</p><ul><li><strong>Rate:</strong> Controls oscillation speed in Hz.</li><li><strong>Depth:</strong> Sets the pitch range in semitones; at 0 there is no FM effect.</li></ul>
+          <h3>FLUXUS</h3><p>Fluxus adds randomness to whether a grain plays and how loud it is.</p><ul><li><strong>Mute:</strong> The chance that a grain is silently skipped.</li><li><strong>Flux:</strong> Random volume variation for each grain.</li></ul>
+          <h3>VARIATION</h3><ul><li><strong>Jitter:</strong> Adds random positional offset around the scan target.</li><li><strong>Spray:</strong> Adds random timing variation in milliseconds.</li><li><strong>Pan:</strong> Scatters grains across the stereo field.</li></ul>
+          <h3>FILTER</h3><p>Two independent filters in series shape the tone and colour of the grain stream.</p><ul><li><strong>LP:</strong> Passes lows and cuts highs.</li><li><strong>HP:</strong> Passes highs and cuts lows.</li><li><strong>BP:</strong> Passes a middle band.</li><li><strong>Notch:</strong> Cuts a narrow middle band.</li><li><strong>Cutoff:</strong> Sets the frequency boundary.</li><li><strong>Res:</strong> Magnifies sound at the cutoff boundary.</li></ul>
+          <h3>ENVELOPE (ADSR)</h3><p>ADSR controls the overall volume from play until stop: <strong>Attack</strong> reaches full volume, <strong>Decay</strong> reaches sustain, <strong>Sustain</strong> holds the level, and <strong>Release</strong> fades to silence.</p>
+          <h3>SPACE</h3><p><strong>Reverb</strong> mimics acoustic reflections. <strong>Delay</strong> adds repeating echoes, <strong>Time</strong> sets the gap, and <strong>Feedback</strong> controls how much echo feeds into the next echo.</p>
+        </section>
 </div>
 
 <script src="javascript/granular-synth-engine.js"></script>
