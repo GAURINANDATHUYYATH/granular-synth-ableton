@@ -288,41 +288,41 @@ It is either a software or a hardware that is capable of performing granular syn
 3.	Glitch/IDM-style electronic music.
 <span class="documentation-heading">HOW THE GRANULAR-SYNTHESISER-ENGINE WORKS</span>
 Any sound uploaded into the granular synthesizer engine undergoes granular synthesis.
-Position: Marks where the grains are in the source audio.
-Scan: Moves through the sound instead of sitting still. This is what lets the sound to evolve continuously instead of looping the same fragment forever. Can control the direction and how fast the scan moves.
-•	Linear: Moves at a constant speed.
-•	Sine: Like a pendulum
-•	Wander: Moves unpredictably
+<span class="documentation-subheading">Position:</span> Marks where the grains are in the source audio.
+<span class="documentation-subheading">Scan:</span> Moves through the sound instead of sitting still. This is what lets the sound to evolve continuously instead of looping the same fragment forever. Can control the direction and how fast the scan moves.
+•	<span class="documentation-label">Linear:</span> Moves at a constant speed.
+•	<span class="documentation-label">Sine:</span> Like a pendulum
+•	<span class="documentation-label">Wander:</span> Moves unpredictably
 
-Grain: The microsegment of the source sound. It could vary in size as from large size(400ms) and small size(10ms)
-•	Size: The length of each grain. It could sound granular, glitchy, buzzy and almost like a texture/noise or smoother and more recognizable, closer to the original recordings depending on the size of the grains.
-•	Density: The number of grains fired per second.
+<span class="documentation-subheading">Grain:</span> The microsegment of the source sound. It could vary in size as from large size(400ms) and small size(10ms)
+•	<span class="documentation-label">Size:</span> The length of each grain. It could sound granular, glitchy, buzzy and almost like a texture/noise or smoother and more recognizable, closer to the original recordings depending on the size of the grains.
+•	<span class="documentation-label">Density:</span> The number of grains fired per second.
 Low density - Can hear individual blips
 High density – Grains overlaps forming a thick and continuous blur of sound.
 	Density and size interact with each other. During the cases where grains are long and gets fired frequently, they have to overlap forming a thick blur.
-•	Pitch: How high or low each grain sounds. It is measured in semitones. The grains audio is played faster to achieve higher pitch and slower to get lower pitch.
-•	Shape: This is what allows all the grains to fade in and fade out smoothly avoiding a harsh click every time one stops or starts. Shape controls the fade curve applied to each grain inside a source audio.
-	Smooth: Fades in and out symmetrically and smoothly. Sounds clean and closest to musical.
-	Rise: Like the name suggests, starting quiet, it swells up and then cuts off sharply at the end.
-	Fall: Just like a drum hit, it starts immediately loud and then fades away.
-	Noise: A fade that is built on pure randomness to intentionally break the smooth transition to produce raw, gritty and glitch heavy textures.
-	TRI/RECT: Simple geometric shapes that sits right in the middle of the 2 extremes offering a steady straight-line ramp or a near instant cut.
-•	Spike: Controls the intensity for the selected shape. If the spike values are turned up during rise/fall, it will transform the gentle curves into steep, sudden transitions. When paired with noise shape, it injects randomness to keep the signal smooth at 0% and completely ragged at 100%.
-•	Reverse: It sets the probability of grains playing backwards.
+•	<span class="documentation-label">Pitch:</span> How high or low each grain sounds. It is measured in semitones. The grains audio is played faster to achieve higher pitch and slower to get lower pitch.
+•	<span class="documentation-label">Shape:</span> This is what allows all the grains to fade in and fade out smoothly avoiding a harsh click every time one stops or starts. Shape controls the fade curve applied to each grain inside a source audio.
+	<span class="documentation-label">Smooth:</span> Fades in and out symmetrically and smoothly. Sounds clean and closest to musical.
+	<span class="documentation-label">Rise:</span> Like the name suggests, starting quiet, it swells up and then cuts off sharply at the end.
+	<span class="documentation-label">Fall:</span> Just like a drum hit, it starts immediately loud and then fades away.
+	<span class="documentation-label">Noise:</span> A fade that is built on pure randomness to intentionally break the smooth transition to produce raw, gritty and glitch heavy textures.
+	<span class="documentation-label">TRI/RECT:</span> Simple geometric shapes that sits right in the middle of the 2 extremes offering a steady straight-line ramp or a near instant cut.
+•	<span class="documentation-label">Spike:</span> Controls the intensity for the selected shape. If the spike values are turned up during rise/fall, it will transform the gentle curves into steep, sudden transitions. When paired with noise shape, it injects randomness to keep the signal smooth at 0% and completely ragged at 100%.
+•	<span class="documentation-label">Reverse:</span> It sets the probability of grains playing backwards.
 0%: All grains play normally.
 100%: All the grains are completely reversed.
-FM (Frequency modulation): Over here one oscillating signal is used to modulate the pitch of another. A fast and simple wave is used to nudge each grains pitch at the exact moment it triggers.
-•	Rate:  Controls the oscillation speed in Hz.
-Low: gives slow and gentle vibrato.
-High: generates a harsh and metallic timbre.
-•	Depth: The pitch range in semitones.
+<span class="documentation-subheading">FM (Frequency modulation):</span> Over here one oscillating signal is used to modulate the pitch of another. A fast and simple wave is used to nudge each grains pitch at the exact moment it triggers.
+•	<span class="documentation-label">Rate:</span>  Controls the oscillation speed in Hz.
+<span class="documentation-label">Low:</span> gives slow and gentle vibrato.
+<span class="documentation-label">High:</span> generates a harsh and metallic timbre.
+•	<span class="documentation-label">Depth:</span> The pitch range in semitones.
 Low (0): Pitch untouched. There is no FM effect.
 At 24(2 full octaves): The pitch deviation is extreme.
-Fluxus: The randomness in whether or how loud a grain sounds.
-•	Mute: It shows a percentage chance that any given grain doesn’t play at all (It gets silently skipped.).
+<span class="documentation-subheading">Fluxus:</span> The randomness in whether or how loud a grain sounds.
+•	<span class="documentation-label">Mute:</span> It shows a percentage chance that any given grain doesn’t play at all (It gets silently skipped.).
 0%: Every grain plays.
 50%: Almost half of them is randomly dropped resulting in the creation of gaps, stutters and a choppier, more sparse rhythm.
-•	Flux: The level of random volume variation given to each grain.
+•	<span class="documentation-label">Flux:</span> The level of random volume variation given to each grain.
 0%: Volume is perfectly uniform and steady.
 The overall loudness flicker and fluctuates unpredictably as you turn it up.
 Variation: This is what makes each grain sound different that it sounds less robotic (Adds stochastic variation to sounds).
@@ -333,30 +333,30 @@ As you turn it up, grains pull from a small surrounding area to make the texture
 •	Pan: Each grain is randomly scattered across the stereo field.
 0%: Every grain is at the center.
 Grains splash randomly between the left and right speakers as you turn it up creating a wide, immersive and surrounding landscape instead of a single point source sound.
-Filter: Shapes the tone and color of the whole grain stream using 2 independent filters in series allowing complex sound design.
+<span class="documentation-subheading">Filter:</span> Shapes the tone and color of the whole grain stream using 2 independent filters in series allowing complex sound design.
 The filter type decides which frequency has to be cut:
-	LP (Low pass): passes lows and cuts highs.
-	HP (High-pass): Passes highs and cuts lows.
-	BP (Band-pass): Passes only a tight middle band cutting both highs and lows outside that band.
-	Notch: Cuts out only the narrow middle band and lets through everything else.
-•	Cutoff: According to the chosen filters everything above the passing range of pitch gets quieted down.
-•	Res (Resonance): It magnifies the sound at the cut-off boundary.
+	<span class="documentation-label">LP (Low pass):</span> passes lows and cuts highs.
+	<span class="documentation-label">HP (High-pass):</span> Passes highs and cuts lows.
+	<span class="documentation-label">BP (Band-pass):</span> Passes only a tight middle band cutting both highs and lows outside that band.
+	<span class="documentation-label">Notch:</span> Cuts out only the narrow middle band and lets through everything else.
+•	<span class="documentation-label">Cutoff:</span> According to the chosen filters everything above the passing range of pitch gets quieted down.
+•	<span class="documentation-label">Res (Resonance):</span> It magnifies the sound at the cut-off boundary.
 Low: Natural and subtle
 High: Sharp and resonant. Almost tonal peak.
-Envelope (ADSR architecture): It is a very standard concept in synthesizers. It is how the entire audio volume evolves from play until stop. Unlike shape which alters the curve of each grain, ADSR envelope dictates the overarching volume curve of the entire audio.
-•	Attack: How long it takes to reach full volume once you hit a note.
+<span class="documentation-subheading">Envelope (ADSR architecture):</span> It is a very standard concept in synthesizers. It is how the entire audio volume evolves from play until stop. Unlike shape which alters the curve of each grain, ADSR envelope dictates the overarching volume curve of the entire audio.
+•	<span class="documentation-label">Attack:</span> How long it takes to reach full volume once you hit a note.
 Long attack: The sound fades in gradually.
 Short attack: The sound jumps in instantly.
-•	Decay: How long it takes to reach sustain level once you hit full volume.
-•	Sustain: How loud the sound stays while it runs.
-•	Release: How long the sound echoes out to complete silence after you stop playing the note.
-Space: This is what gives the feel of sound being placed inside a physical environment. It controls the depth, room tone and echo of the sound.
-•	Reverb: Mimics the acoustic reflection of a physical environment.
+•	<span class="documentation-label">Decay:</span> How long it takes to reach sustain level once you hit full volume.
+•	<span class="documentation-label">Sustain:</span> How loud the sound stays while it runs.
+•	<span class="documentation-label">Release:</span> How long the sound echoes out to complete silence after you stop playing the note.
+<span class="documentation-subheading">Space:</span> This is what gives the feel of sound being placed inside a physical environment. It controls the depth, room tone and echo of the sound.
+•	<span class="documentation-label">Reverb:</span> Mimics the acoustic reflection of a physical environment.
 0%: Completely dry and no room stimulation.
 Higher: Adds acoustic reflections
-•	Delay: Adds distinct and repeating echoes while reverb blurs thousands of tiny reflections together.
-•	Time: Change the gap between each delay.
-•	Feedback: Controls the level of echo that gets fed back into create the next echo.
+•	<span class="documentation-label">Delay:</span> Adds distinct and repeating echoes while reverb blurs thousands of tiny reflections together.
+•	<span class="documentation-label">Time:</span> Change the gap between each delay.
+•	<span class="documentation-label">Feedback:</span> Controls the level of echo that gets fed back into create the next echo.
 High: increases the number of echoes.
 Low: Just one or two quick reflections.</div>
 </section>
