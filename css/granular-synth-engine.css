@@ -134,8 +134,8 @@
 
   .documentation{
     margin-top:40px; padding:24px 26px; background:var(--bg-panel);
-    border:1px solid var(--border); border-radius:10px; color:var(--text-dim);
-    font-size:13px; line-height:1.65;
+    border:1px solid var(--border); border-radius:10px; color:#b8b4bd;
+    font-size:13px; line-height:1.7;
   }
   .documentation h2,.documentation h3{
     color:var(--text); letter-spacing:.1em; line-height:1.3;
@@ -152,10 +152,11 @@
     font-size:18px; font-weight:700; letter-spacing:.1em; line-height:1.3;
   }
   .documentation-subheading{
-    color:var(--text); font-weight:700; letter-spacing:.03em;
+    display:block; margin:18px 0 4px; color:#e2ded5;
+    font-size:14px; font-weight:700; letter-spacing:.04em; line-height:1.4;
   }
   .documentation-label{
-    color:var(--text); font-weight:600;
+    color:#cec9cf; font-weight:600;
   }
   .ideas{
     margin-top:24px; padding:24px 26px; background:var(--bg-panel);
@@ -198,9 +199,10 @@
     .play-btn{ min-height:44px; padding:10px 18px; }
     .hint{ flex:1 1 180px; line-height:1.45; }
     .controls{ display:block; margin-top:12px; padding-top:14px; }
-    .documentation{ margin-top:28px; padding:20px 16px; font-size:12px; line-height:1.6; }
+    .documentation{ margin-top:28px; padding:20px 16px; font-size:12px; line-height:1.65; }
     .documentation h2{ font-size:16px; }
     .documentation-heading{ font-size:16px; }
+    .documentation-subheading{ font-size:13px; }
     .ideas{ margin-top:20px; padding:20px 16px; font-size:12px; line-height:1.6; }
     .ideas h2{ font-size:16px; }
     .group{ min-width:0; margin-bottom:26px; }
