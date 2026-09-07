@@ -714,6 +714,35 @@
   var recordBtn = document.getElementById("record-btn");
   var mediaRecorder = null, recordChunks = [], recordStream = null, recordTimerId = null, recordStartTs = 0, recordCounter = 0;
 
+  var micBtn = document.getElementById("mic-btn");
+  if(micBtn){
+    micBtn.title = "Use the microphone as a live granular source";
+    micBtn.addEventListener("click", async function(){
+      if(micEnabled){
+        stopLiveMic();
+        micBtn.textContent = "\uD83C\uDFA4 LIVE MIC";
+        micBtn.classList.remove("recording");
+        statusEl.textContent = "live microphone stopped";
+        return;
+      }
+
+      micBtn.disabled = true;
+      micBtn.textContent = "\u2026 REQUESTING MIC";
+      try{
+        await startLiveMic();
+        micBtn.textContent = "\u25A0 STOP MIC";
+        micBtn.classList.add("recording");
+        statusEl.textContent = "live microphone granular input active";
+      }catch(err){
+        console.error(err);
+        micBtn.textContent = "\uD83C\uDFA4 LIVE MIC";
+        statusEl.textContent = "microphone access denied or unavailable";
+      }finally{
+        micBtn.disabled = false;
+      }
+    });
+  }
+
   recordBtn.addEventListener("click", async function(){
     if(mediaRecorder && mediaRecorder.state === "recording"){
       mediaRecorder.stop();
