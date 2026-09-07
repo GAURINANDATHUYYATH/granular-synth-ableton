@@ -246,6 +246,15 @@
   var playing = false;
   var grainTimer = null;
   var activeGrains = [];
+  var micEnabled = false;
+  var micStream = null;
+  var micSource = null;
+  var micProcessor = null;
+  var micMuteGain = null;
+  var micRing = null;
+  var micRingSize = 0;
+  var micWriteIndex = 0;
+  var micFramesAvailable = 0;
   var scanPhase = 0;    // drives the linear-ramp and sine-oscillator scan modes
   var scanMode = "linear"; // "linear" | "sine" | "wander" — how the SCAN knob drives position
   var wanderValue = knobs.position.getValue();  // wander mode's current eased position
@@ -344,6 +353,111 @@
     return revBuf;
   }
 
+  function createLiveMicBuffer(startFrame, frameCount){
+    var buffer = audioCtx.createBuffer(2, frameCount, audioCtx.sampleRate);
+    var left = buffer.getChannelData(0);
+    var right = buffer.getChannelData(1);
+    for(var i=0; i<frameCount; i++){
+      var index = (startFrame + i) % micRingSize;
+      left[i] = micRing[0][index];
+      right[i] = micRing[1][index];
+    }
+    return buffer;
+  }
+
+  async function startLiveMic(){
+    ensureContext();
+    if(micEnabled) return;
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error("Microphone access requires HTTPS or localhost");
+    }
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 2, echoCancellation: false, autoGainControl: false, noiseSuppression: false }
+    });
+    micSource = audioCtx.createMediaStreamSource(micStream);
+    micRingSize = Math.floor(audioCtx.sampleRate * 5);
+    micRing = [new Float32Array(micRingSize), new Float32Array(micRingSize)];
+    micWriteIndex = 0;
+    micFramesAvailable = 0;
+    micProcessor = audioCtx.createScriptProcessor(2048, 2, 2);
+    micProcessor.onaudioprocess = function(e){
+      var input = e.inputBuffer;
+      var leftIn = input.getChannelData(0);
+      var rightIn = input.numberOfChannels > 1 ? input.getChannelData(1) : leftIn;
+      for(var i=0; i<leftIn.length; i++){
+        micRing[0][micWriteIndex] = leftIn[i];
+        micRing[1][micWriteIndex] = rightIn[i];
+        micWriteIndex = (micWriteIndex + 1) % micRingSize;
+      }
+      micFramesAvailable = Math.min(micRingSize, micFramesAvailable + leftIn.length);
+      e.outputBuffer.getChannelData(0).fill(0);
+      if(e.outputBuffer.numberOfChannels > 1) e.outputBuffer.getChannelData(1).fill(0);
+    };
+    micMuteGain = audioCtx.createGain();
+    micMuteGain.gain.value = 0;
+    micSource.connect(micProcessor);
+    micProcessor.connect(micMuteGain);
+    micMuteGain.connect(audioCtx.destination);
+    micEnabled = true;
+    await audioCtx.resume();
+    updatePlayEnabled();
+    if(!playing) startPlayback();
+  }
+
+  function stopLiveMic(){
+    micEnabled = false;
+    if(micProcessor){ micProcessor.disconnect(); micProcessor.onaudioprocess = null; micProcessor = null; }
+    if(micSource){ micSource.disconnect(); micSource = null; }
+    if(micMuteGain){ micMuteGain.disconnect(); micMuteGain = null; }
+    if(micStream){ micStream.getTracks().forEach(function(track){ track.stop(); }); micStream = null; }
+    micFramesAvailable = 0;
+    updatePlayEnabled();
+  }
+
+  function triggerLiveGrain(){
+    if(!micEnabled || micFramesAvailable < 128) return;
+    if(knobs.fluxMute.getValue() > 0 && Math.random()*100 < knobs.fluxMute.getValue()) return;
+    var outDur = knobs.size.getValue()/1000;
+    var rate = Math.pow(2, knobs.pitch.getValue()/12);
+    var fmRate = knobs.fmRate.getValue();
+    var fmDepth = knobs.fmDepth.getValue();
+    if(fmDepth > 0 && fmRate > 0){
+      rate *= Math.pow(2, (fmDepth * Math.sin(2*Math.PI*fmRate*audioCtx.currentTime))/12);
+    }
+    var readFrames = Math.max(128, Math.min(micFramesAvailable, Math.floor(outDur * rate * audioCtx.sampleRate)));
+    var maxStart = Math.max(0, micFramesAvailable - readFrames);
+    var posFrac = knobs.position.getValue() + (Math.random()*2-1) * knobs.jitter.getValue()/100 * 0.5;
+    posFrac = Math.min(1, Math.max(0, posFrac));
+    var oldest = (micWriteIndex - micFramesAvailable + micRingSize) % micRingSize;
+    var startFrame = (oldest + Math.floor(posFrac * maxStart)) % micRingSize;
+    var buffer = createLiveMicBuffer(startFrame, readFrames);
+    if(Math.random()*100 < knobs.reverse.getValue()) buffer = buildReversedSlice(buffer, 0, buffer.duration);
+    var startTime = audioCtx.currentTime + 0.0008 + Math.random()*knobs.spray.getValue()/1000;
+    var fluxAmt = knobs.fluxLevel.getValue()/100;
+    var fluxLevel = fluxAmt > 0 ? 1 - Math.random()*fluxAmt : 1;
+    var curve = makeCurve(windowShape, 64, knobs.spike.getValue()/100);
+    if(fluxLevel !== 1){ for(var ci=0; ci<curve.length; ci++) curve[ci] *= fluxLevel; }
+    var gain = audioCtx.createGain();
+    gain.gain.setValueCurveAtTime(curve, startTime, outDur);
+    var src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = rate;
+    var node = gain;
+    if(audioCtx.createStereoPanner){
+      var panner = audioCtx.createStereoPanner();
+      panner.pan.value = (Math.random()*2-1) * knobs.pan.getValue()/100;
+      gain.connect(panner); panner.connect(grainBus); node = panner;
+    }else{
+      gain.connect(grainBus);
+    }
+    src.connect(gain);
+    src.start(startTime);
+    src.stop(startTime + outDur + 0.03);
+    src.onended = function(){
+      try{ src.disconnect(); gain.disconnect(); if(node !== gain) node.disconnect(); }catch(e){}
+    };
+  }
+
   function triggerGrain(){
     var pool = sources.filter(function(s){ return s.enabled; });
     if(!pool.length) return;
@@ -435,14 +549,15 @@
 
   function scheduleLoop(){
     if(!playing) return;
-    triggerGrain();
+    if(micEnabled) triggerLiveGrain(); else triggerGrain();
     var interval = 1000 / knobs.density.getValue();
     grainTimer = setTimeout(scheduleLoop, interval);
   }
 
   var playBtn = document.getElementById("play-btn");
   function startPlayback(){
-    if(!sources.some(function(s){ return s.enabled; })) return;
+    if(!micEnabled && !sources.some(function(s){ return s.enabled; })) return;
+    ensureContext();
     audioCtx.resume();
     playing = true;
     scheduleLoop();
@@ -479,7 +594,7 @@
   });
 
   function updatePlayEnabled(){
-    var anyEnabled = sources.some(function(s){ return s.enabled; });
+    var anyEnabled = micEnabled || sources.some(function(s){ return s.enabled; });
     playBtn.disabled = !anyEnabled;
     if(!anyEnabled && playing) stopPlayback();
   }

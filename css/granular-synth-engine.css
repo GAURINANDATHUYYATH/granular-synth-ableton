@@ -47,6 +47,7 @@
     cursor:pointer; white-space:nowrap;
   }
   .bar-btn.record.recording{ border-color:var(--danger); color:var(--danger); animation:pulse 1.2s infinite; }
+  .bar-btn.mic.recording{ border-color:var(--accent); color:var(--accent); animation:pulse 1.2s infinite; }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.5;} }
   .chips{ display:flex; gap:8px; flex-wrap:wrap; flex:1; }
   .chip{
