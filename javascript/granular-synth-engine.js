@@ -400,6 +400,12 @@
     micMuteGain.connect(audioCtx.destination);
     micEnabled = true;
     await audioCtx.resume();
+    updateStageVisibility();
+    renderSourcesBar();
+    if(!rafRunning){
+      rafRunning = true;
+      requestAnimationFrame(visualLoop);
+    }
     updatePlayEnabled();
     if(!playing) startPlayback();
   }
@@ -411,6 +417,8 @@
     if(micMuteGain){ micMuteGain.disconnect(); micMuteGain = null; }
     if(micStream){ micStream.getTracks().forEach(function(track){ track.stop(); }); micStream = null; }
     micFramesAvailable = 0;
+    updateStageVisibility();
+    renderSourcesBar();
     updatePlayEnabled();
   }
 
@@ -610,15 +618,39 @@
   var chipsEl = document.getElementById("chips");
 
   function updateStageVisibility(){
-    var has = sources.length > 0;
+    var hasFiles = sources.length > 0;
+    var hasLiveMic = micEnabled;
+    var has = hasFiles || hasLiveMic;
     dropzone.style.display = has ? "none" : "flex";
     waveCanvas.style.display = has ? "block" : "none";
     overlayCanvas.style.display = has ? "block" : "none";
-    fileNameEl.textContent = has ? (sources.length + " source" + (sources.length>1?"s":"") + " loaded") : "no sources loaded";
+    if(hasLiveMic && hasFiles){
+      fileNameEl.textContent = "LIVE MIC + " + sources.length + " source" + (sources.length>1?"s":"") + " loaded";
+    }else if(hasLiveMic){
+      fileNameEl.textContent = "LIVE MIC active";
+    }else if(hasFiles){
+      fileNameEl.textContent = sources.length + " source" + (sources.length>1?"s":"") + " loaded";
+    }else{
+      fileNameEl.textContent = "no sources loaded";
+    }
   }
 
   function renderSourcesBar(){
     chipsEl.innerHTML = "";
+    if(micEnabled){
+      var micChip = document.createElement("div");
+      micChip.className = "chip mic-chip enabled viewed";
+      micChip.setAttribute("aria-label", "Live microphone active");
+      var micName = document.createElement("span");
+      micName.className = "chip-name";
+      micName.textContent = "LIVE MIC";
+      var micDur = document.createElement("span");
+      micDur.className = "chip-dur";
+      micDur.textContent = "stream";
+      micChip.appendChild(micName);
+      micChip.appendChild(micDur);
+      chipsEl.appendChild(micChip);
+    }
     sources.forEach(function(s){
       var chip = document.createElement("div");
       chip.className = "chip" + (s.enabled ? " enabled" : "") + (s.id===viewedId ? " viewed" : "");
