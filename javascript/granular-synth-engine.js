@@ -369,10 +369,10 @@
     ensureContext();
     if(micEnabled) return;
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      throw new Error("Microphone access requires HTTPS or localhost");
+      throw new Error("Microphone access requires an HTTPS or localhost page");
     }
     micStream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 2, echoCancellation: false, autoGainControl: false, noiseSuppression: false }
+      audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false }
     });
     micSource = audioCtx.createMediaStreamSource(micStream);
     micRingSize = Math.floor(audioCtx.sampleRate * 5);
@@ -736,7 +736,17 @@
       }catch(err){
         console.error(err);
         micBtn.textContent = "\uD83C\uDFA4 LIVE MIC";
-        statusEl.textContent = "microphone access denied or unavailable";
+        if(!window.isSecureContext){
+          statusEl.textContent = "open the HTTPS GitHub Pages link to use the microphone";
+        }else if(err && err.name === "NotAllowedError"){
+          statusEl.textContent = "microphone permission blocked; allow it in browser site settings";
+        }else if(err && err.name === "NotFoundError"){
+          statusEl.textContent = "no microphone was found on this device";
+        }else if(err && err.name === "NotReadableError"){
+          statusEl.textContent = "microphone is busy or unavailable";
+        }else{
+          statusEl.textContent = err && err.message ? err.message : "microphone access failed";
+        }
       }finally{
         micBtn.disabled = false;
       }
