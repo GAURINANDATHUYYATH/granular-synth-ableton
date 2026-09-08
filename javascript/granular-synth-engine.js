@@ -396,8 +396,6 @@
     syncKnobsFromActiveLayer();
   }
 
-  initLayers();
-
   if(layerTabs.length){
     layerTabs.forEach(function(tab){
       tab.addEventListener("click", function(){ setActiveLayer(tab.dataset.layer); });
@@ -512,6 +510,8 @@
   var wanderTimer = 0;                          // seconds until wander mode picks a new target
   var scanHistory = [];          // recent {t, p} samples of the scanned position, for the mini indicator
   var SCAN_HISTORY_WINDOW = 4000; // how many ms of trail the indicator shows
+
+  initLayers();
 
   document.getElementById("scanmode-seg").addEventListener("click", function(e){
     var btn = e.target.closest(".seg-btn");
