@@ -216,8 +216,9 @@
     var running = false;
 
     function triggerLayerGrain(){
-      var sourceRef = params.source && params.source.enabled ? params.source : null;
+      var sourceRef = params.source && !params.source.muted ? params.source : null;
       if(!sourceRef){
+        if(params.source && params.source.muted) return;
         var enabledPool = sources.filter(function(s){ return s.enabled; });
         if(enabledPool.length){
           sourceRef = enabledPool[Math.floor(Math.random()*enabledPool.length)];
@@ -917,7 +918,13 @@
     }
     sources.forEach(function(s){
       var chip = document.createElement("div");
-      chip.className = "chip" + (s.enabled ? " enabled" : "") + (s.id===viewedId ? " viewed" : "");
+      var selected = false;
+      layerNames.forEach(function(layerName){
+        if(layers[layerName] && layers[layerName].params.source === s){
+          selected = layerName === activeLayer;
+        }
+      });
+      chip.className = "chip" + (selected ? " selected" : "") + (s.muted ? " muted" : "") + (s.id===viewedId ? " viewed" : "");
       chip.dataset.id = s.id;
 
       var name = document.createElement("span");
@@ -928,6 +935,13 @@
       dur.className = "chip-dur";
       dur.textContent = s.buffer.duration.toFixed(1) + "s";
 
+      var muteBtn = document.createElement("button");
+      muteBtn.className = "chip-mute";
+      muteBtn.type = "button";
+      muteBtn.title = s.muted ? "Unmute source" : "Mute source";
+      muteBtn.textContent = s.muted ? "🔇" : "🔊";
+      muteBtn.addEventListener("click", function(e){ e.stopPropagation(); toggleMuted(s.id); });
+
       var del = document.createElement("button");
       del.className = "chip-del";
       del.type = "button";
@@ -937,8 +951,9 @@
 
       chip.appendChild(name);
       chip.appendChild(dur);
+      chip.appendChild(muteBtn);
       chip.appendChild(del);
-      chip.addEventListener("click", function(){ toggleEnabled(s.id); });
+      chip.addEventListener("click", function(){ selectSourceForEditing(s.id); });
       chipsEl.appendChild(chip);
     });
   }
@@ -946,7 +961,7 @@
   function addSource(name, buffer){
     sourceCounter++;
     var id = "src" + sourceCounter;
-    sources.push({ id: id, name: name, buffer: buffer, enabled: true });
+    sources.push({ id: id, name: name, buffer: buffer, enabled: true, muted: false });
     viewedId = id;
     syncLayerSources();
     renderSourcesBar();
@@ -971,11 +986,25 @@
     updatePlayEnabled();
   }
 
-  function toggleEnabled(id){
-    var s = sources.find(function(s){ return s.id === id; });
+  function selectSourceForEditing(id){
+    var s = sources.find(function(source){ return source.id === id; });
     if(!s) return;
-    s.enabled = !s.enabled;
-    if(s.enabled) viewedId = id;
+    viewedId = id;
+    var layerName = null;
+    layerNames.forEach(function(name){
+      if(layers[name] && layers[name].params.source === s){
+        layerName = name;
+      }
+    });
+    if(layerName) setActiveLayer(layerName);
+    renderSourcesBar();
+    if(viewedId === id) drawWaveform();
+  }
+
+  function toggleMuted(id){
+    var s = sources.find(function(source){ return source.id === id; });
+    if(!s) return;
+    s.muted = !s.muted;
     syncLayerSources();
     renderSourcesBar();
     if(viewedId === id) drawWaveform();

@@ -56,8 +56,15 @@
     color:var(--text-dim); cursor:pointer; opacity:.55;
   }
   .chip.enabled{ opacity:1; border-color:var(--accent-2); color:var(--text); }
+  .chip.selected{ opacity:1; border-color:var(--accent-2); color:var(--text); }
+  .chip.muted{ opacity:.45; border-color:var(--border); color:var(--text-dim); }
   .chip.mic-chip{ border-color:var(--accent); color:var(--text); }
   .chip.viewed{ box-shadow:0 0 0 1px var(--accent); }
+  .chip-mute{
+    border:none; background:transparent; color:var(--text-dim); cursor:pointer; font-size:12px;
+    line-height:1; padding:0 2px; border-radius:4px;
+  }
+  .chip-mute:hover{ color:var(--accent); }
   .chip-dur{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:10px; color:var(--text-dim); }
   .chip-del{ border:none; background:transparent; color:var(--text-dim); cursor:pointer; font-size:14px; line-height:1; padding:0 2px; }
   .chip-del:hover{ color:var(--danger); }
