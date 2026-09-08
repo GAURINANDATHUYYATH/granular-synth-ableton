@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Granular — grain synthesis engine</title>
-<link rel="stylesheet" href="css/granular-synth-engine.css?v=8c20041">
+<link rel="stylesheet" href="../css/granular-synth-engine.css?v=8c20041">
 </head>
 <body>
 <div class="app">
@@ -45,6 +45,12 @@
   <div class="transport">
     <button id="play-btn" class="play-btn" disabled>▶ PLAY</button>
     <span class="hint">drag knobs vertically to adjust · double-click to reset · scroll to fine-tune</span>
+  </div>
+
+  <div class="layer-tabs" aria-label="Layer selector">
+    <button class="layer-tab active" data-layer="A" type="button">LAYER A</button>
+    <button class="layer-tab" data-layer="B" type="button">LAYER B</button>
+    <button class="layer-tab" data-layer="C" type="button">LAYER C</button>
   </div>
 
   <div class="controls">
@@ -372,6 +378,6 @@ Low: Just one or two quick reflections.</div>
   </section>
 </div>
 
-<script src="javascript/granular-synth-engine.js?v=live-mic-1"></script>
+<script src="../javascript/granular-synth-engine.js?v=live-mic-1"></script>
 </body>
 </html>

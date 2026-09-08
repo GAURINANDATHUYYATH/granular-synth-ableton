@@ -7,6 +7,7 @@
   function createKnob(root, opts){
     var min = opts.min, max = opts.max, def = opts.def, curve = opts.curve || 1;
     var formatFn = opts.formatFn, onInput = opts.onInput;
+    var extraListeners = [];
     var knobEl = root.querySelector(".knob");
     var valueEl = root.querySelector(".knob-value");
     var value = def;
@@ -25,6 +26,7 @@
       value = Math.min(max, Math.max(min, v));
       render();
       if(!silent && onInput) onInput(value);
+      for(var i=0; i<extraListeners.length; i++) extraListeners[i](value, silent);
     }
 
     var dragging = false, startY = 0, startFrac = 0;
@@ -59,7 +61,11 @@
     });
 
     render();
-    return { setValue: setValue, getValue: function(){ return value; } };
+    return {
+      setValue: setValue,
+      getValue: function(){ return value; },
+      addListener: function(fn){ extraListeners.push(fn); }
+    };
   }
 
   /* ============================================================
@@ -155,8 +161,251 @@
   };
 
   var windowShape = "hann";
+  var activeLayer = "A";
+  var suppressLayerSync = false;
+  var layers = { A: null, B: null, C: null };
+  var layerNames = ["A", "B", "C"];
+  var layerTabs = Array.prototype.slice.call(document.querySelectorAll(".layer-tab"));
+
+  function setActiveLayer(layerName){
+    if(!layers[layerName]) return;
+    activeLayer = layerName;
+    layerTabs.forEach(function(tab){
+      tab.classList.toggle("active", tab.dataset.layer === layerName);
+    });
+    syncKnobsFromActiveLayer();
+  }
+
+  function layerParamsFromKnobs(){
+    var params = {};
+    Object.keys(knobs).forEach(function(name){
+      params[name] = knobs[name].getValue();
+    });
+    params.windowShape = windowShape;
+    return params;
+  }
+
+  function syncKnobsFromActiveLayer(){
+    var layer = layers[activeLayer];
+    if(!layer) return;
+    suppressLayerSync = true;
+    Object.keys(knobs).forEach(function(name){
+      knobs[name].setValue(layer.params[name], true);
+    });
+    document.getElementById("window-select").value = layer.params.windowShape || "hann";
+    suppressLayerSync = false;
+  }
+
+  function syncLayerSources(){
+    layerNames.forEach(function(name, index){
+      var layer = layers[name];
+      if(!layer) return;
+      layer.params.source = sources[index] || null;
+    });
+  }
+
+  function createGrainLayer(source, initialParams){
+    var params = {};
+    Object.keys(knobs).forEach(function(name){
+      params[name] = typeof initialParams[name] !== "undefined" ? initialParams[name] : knobs[name].getValue();
+    });
+    params.windowShape = initialParams && initialParams.windowShape ? initialParams.windowShape : windowShape;
+    params.source = source || null;
+
+    var timer = null;
+    var running = false;
+
+    function triggerLayerGrain(){
+      var sourceRef = params.source && params.source.enabled ? params.source : null;
+      if(!sourceRef){
+        var enabledPool = sources.filter(function(s){ return s.enabled; });
+        if(enabledPool.length){
+          sourceRef = enabledPool[Math.floor(Math.random()*enabledPool.length)];
+        }
+      }
+      var outDur = params.size/1000;
+      var rate = Math.pow(2, params.pitch/12);
+      var fmRate = params.fmRate;
+      var fmDepth = params.fmDepth;
+
+      if(fmDepth > 0 && fmRate > 0){
+        var fmSt = fmDepth * Math.sin(2*Math.PI*fmRate*audioCtx.currentTime);
+        rate *= Math.pow(2, fmSt/12);
+      }
+
+      if(micEnabled){
+        if(!micEnabled || micFramesAvailable < 128) return;
+        var readFrames = Math.max(128, Math.min(micFramesAvailable, Math.floor(outDur * rate * audioCtx.sampleRate)));
+        var maxStart = Math.max(0, micFramesAvailable - readFrames);
+        var posFrac = params.position + (Math.random()*2-1) * params.jitter/100 * 0.5;
+        posFrac = Math.min(1, Math.max(0, posFrac));
+        var oldest = (micWriteIndex - micFramesAvailable + micRingSize) % micRingSize;
+        var startFrame = (oldest + Math.floor(posFrac * maxStart)) % micRingSize;
+        var buffer = createLiveMicBuffer(startFrame, readFrames);
+
+        if(Math.random()*100 < params.reverse){
+          buffer = buildReversedSlice(buffer, 0, buffer.duration);
+        }
+
+        var startTime = audioCtx.currentTime + 0.0008 + Math.random()*params.spray/1000;
+        var fluxAmt = params.fluxLevel/100;
+        var fluxLevel = fluxAmt > 0 ? 1 - Math.random()*fluxAmt : 1;
+        var curve = makeCurve(params.windowShape || windowShape, 64, params.spike/100);
+        if(fluxLevel !== 1){
+          var scaled = new Float32Array(curve.length);
+          for(var ci=0; ci<curve.length; ci++) scaled[ci] = curve[ci] * fluxLevel;
+          curve = scaled;
+        }
+
+        var gain = audioCtx.createGain();
+        gain.gain.setValueCurveAtTime(curve, startTime, outDur);
+        var src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        src.playbackRate.value = rate;
+
+        var node = gain;
+        if(audioCtx.createStereoPanner){
+          var panner = audioCtx.createStereoPanner();
+          panner.pan.value = (Math.random()*2-1) * params.pan/100;
+          gain.connect(panner);
+          panner.connect(grainBus);
+          node = panner;
+        } else {
+          gain.connect(grainBus);
+        }
+
+        src.connect(gain);
+        src.start(startTime);
+        src.stop(startTime + outDur + 0.03);
+        src.onended = function(){
+          try{ src.disconnect(); gain.disconnect(); if(node !== gain) node.disconnect(); }catch(e){}
+        };
+        return;
+      }
+
+      if(!sourceRef || !sourceRef.buffer) return;
+
+      if(params.fluxMute > 0 && Math.random()*100 < params.fluxMute) return;
+
+      var buffer = sourceRef.buffer;
+      var readDur = outDur * rate;
+      if(readDur > buffer.duration) readDur = buffer.duration;
+
+      var jitterAmt = params.jitter/100;
+      var posFrac = params.position + (Math.random()*2-1) * jitterAmt * 0.5;
+      posFrac = Math.min(1, Math.max(0, posFrac));
+      var offset = posFrac * buffer.duration;
+      offset = Math.min(offset, Math.max(0, buffer.duration - readDur));
+
+      var sprayDelay = Math.random() * params.spray/1000;
+      var startTime = audioCtx.currentTime + 0.0008 + sprayDelay;
+
+      var reversed = Math.random()*100 < params.reverse;
+      var src = audioCtx.createBufferSource();
+      if(reversed){
+        src.buffer = buildReversedSlice(buffer, offset, readDur);
+        src.playbackRate.value = rate;
+      } else {
+        src.buffer = buffer;
+        src.playbackRate.value = rate;
+      }
+
+      var fluxAmt = params.fluxLevel/100;
+      var fluxLevel = fluxAmt > 0 ? (1 - Math.random()*fluxAmt) : 1;
+      var curve = makeCurve(params.windowShape || windowShape, 64, params.spike/100);
+      if(fluxLevel !== 1){
+        var scaled = new Float32Array(curve.length);
+        for(var ci=0; ci<curve.length; ci++) scaled[ci] = curve[ci] * fluxLevel;
+        curve = scaled;
+      }
+
+      var gain = audioCtx.createGain();
+      gain.gain.setValueCurveAtTime(curve, startTime, outDur);
+
+      var node = gain;
+      if(audioCtx.createStereoPanner){
+        var panner = audioCtx.createStereoPanner();
+        var panSpread = params.pan/100;
+        panner.pan.value = (Math.random()*2-1) * panSpread;
+        gain.connect(panner);
+        panner.connect(grainBus);
+        node = panner;
+      } else {
+        gain.connect(grainBus);
+      }
+      src.connect(gain);
+
+      src.start(startTime, reversed ? 0 : offset, reversed ? src.buffer.duration : readDur);
+      src.stop(startTime + outDur + 0.03);
+      src.onended = function(){
+        try{ src.disconnect(); gain.disconnect(); if(node!==gain) node.disconnect(); }catch(e){}
+      };
+
+      var overlay = document.getElementById("overlay-canvas");
+      var h = overlay.clientHeight || 1;
+      var data = buffer.getChannelData(0);
+      var idx = Math.min(data.length-1, Math.floor(posFrac * data.length));
+      var sample = data[idx] || 0;
+      var y = (1 - (sample+1)/2) * h;
+      activeGrains.push({ x: posFrac, y: y, born: performance.now(), life: outDur*1000 + 260 });
+    }
+
+    function scheduleLoop(){
+      if(!running) return;
+      triggerLayerGrain();
+      var interval = Math.max(16, 1000 / params.density);
+      timer = setTimeout(scheduleLoop, interval);
+    }
+
+    return {
+      params: params,
+      start:function(){
+        if(running) return;
+        running = true;
+        scheduleLoop();
+      },
+      stop:function(){
+        running = false;
+        if(timer){ clearTimeout(timer); timer = null; }
+      },
+      setParam:function(name, value){
+        if(typeof params[name] !== "undefined") params[name] = value;
+      }
+    };
+  }
+
+  function bindLayerAwareKnobs(){
+    Object.keys(knobs).forEach(function(name){
+      var knob = knobs[name];
+      knob.addListener(function(v, silent){
+        if(!suppressLayerSync && layers[activeLayer] && typeof layers[activeLayer].params[name] !== "undefined"){
+          layers[activeLayer].params[name] = v;
+        }
+      });
+    });
+  }
+
+  function initLayers(){
+    var initialParams = layerParamsFromKnobs();
+    layers.A = createGrainLayer(null, initialParams);
+    layers.B = createGrainLayer(null, initialParams);
+    layers.C = createGrainLayer(null, initialParams);
+    bindLayerAwareKnobs();
+    syncLayerSources();
+    syncKnobsFromActiveLayer();
+  }
+
+  initLayers();
+
+  if(layerTabs.length){
+    layerTabs.forEach(function(tab){
+      tab.addEventListener("click", function(){ setActiveLayer(tab.dataset.layer); });
+    });
+  }
+
   document.getElementById("window-select").addEventListener("change", function(e){
     windowShape = e.target.value;
+    if(layers[activeLayer]) layers[activeLayer].params.windowShape = e.target.value;
   });
 
   var filter1Type = "lowpass";
@@ -369,16 +618,18 @@
     ensureContext();
     if(micEnabled) return;
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      throw new Error("Microphone access requires an HTTPS or localhost page");
+      throw new Error("Microphone access requires HTTPS or localhost");
     }
+
     micStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false }
+      audio: { channelCount: 2, echoCancellation: false, autoGainControl: false, noiseSuppression: false }
     });
     micSource = audioCtx.createMediaStreamSource(micStream);
     micRingSize = Math.floor(audioCtx.sampleRate * 5);
     micRing = [new Float32Array(micRingSize), new Float32Array(micRingSize)];
     micWriteIndex = 0;
     micFramesAvailable = 0;
+
     micProcessor = audioCtx.createScriptProcessor(2048, 2, 2);
     micProcessor.onaudioprocess = function(e){
       var input = e.inputBuffer;
@@ -393,6 +644,7 @@
       e.outputBuffer.getChannelData(0).fill(0);
       if(e.outputBuffer.numberOfChannels > 1) e.outputBuffer.getChannelData(1).fill(0);
     };
+
     micMuteGain = audioCtx.createGain();
     micMuteGain.gain.value = 0;
     micSource.connect(micProcessor);
@@ -425,6 +677,7 @@
   function triggerLiveGrain(){
     if(!micEnabled || micFramesAvailable < 128) return;
     if(knobs.fluxMute.getValue() > 0 && Math.random()*100 < knobs.fluxMute.getValue()) return;
+
     var outDur = knobs.size.getValue()/1000;
     var rate = Math.pow(2, knobs.pitch.getValue()/12);
     var fmRate = knobs.fmRate.getValue();
@@ -432,6 +685,7 @@
     if(fmDepth > 0 && fmRate > 0){
       rate *= Math.pow(2, (fmDepth * Math.sin(2*Math.PI*fmRate*audioCtx.currentTime))/12);
     }
+
     var readFrames = Math.max(128, Math.min(micFramesAvailable, Math.floor(outDur * rate * audioCtx.sampleRate)));
     var maxStart = Math.max(0, micFramesAvailable - readFrames);
     var posFrac = knobs.position.getValue() + (Math.random()*2-1) * knobs.jitter.getValue()/100 * 0.5;
@@ -440,11 +694,13 @@
     var startFrame = (oldest + Math.floor(posFrac * maxStart)) % micRingSize;
     var buffer = createLiveMicBuffer(startFrame, readFrames);
     if(Math.random()*100 < knobs.reverse.getValue()) buffer = buildReversedSlice(buffer, 0, buffer.duration);
+
     var startTime = audioCtx.currentTime + 0.0008 + Math.random()*knobs.spray.getValue()/1000;
     var fluxAmt = knobs.fluxLevel.getValue()/100;
     var fluxLevel = fluxAmt > 0 ? 1 - Math.random()*fluxAmt : 1;
     var curve = makeCurve(windowShape, 64, knobs.spike.getValue()/100);
     if(fluxLevel !== 1){ for(var ci=0; ci<curve.length; ci++) curve[ci] *= fluxLevel; }
+
     var gain = audioCtx.createGain();
     gain.gain.setValueCurveAtTime(curve, startTime, outDur);
     var src = audioCtx.createBufferSource();
@@ -568,7 +824,11 @@
     ensureContext();
     audioCtx.resume();
     playing = true;
-    scheduleLoop();
+
+    layerNames.forEach(function(layerName){
+      if(layers[layerName]) layers[layerName].start();
+    });
+
     playBtn.textContent = "\u25a0 STOP";
     playBtn.classList.add("playing");
 
@@ -584,7 +844,11 @@
   }
   function stopPlayback(){
     playing = false;
-    clearTimeout(grainTimer);
+
+    layerNames.forEach(function(layerName){
+      if(layers[layerName]) layers[layerName].stop();
+    });
+
     playBtn.textContent = "\u25b6 PLAY";
     playBtn.classList.remove("playing");
 
@@ -684,6 +948,7 @@
     var id = "src" + sourceCounter;
     sources.push({ id: id, name: name, buffer: buffer, enabled: true });
     viewedId = id;
+    syncLayerSources();
     renderSourcesBar();
     updateStageVisibility();
     requestAnimationFrame(drawWaveform);
@@ -699,6 +964,7 @@
     if(viewedId === id){
       viewedId = sources.length ? sources[sources.length-1].id : null;
     }
+    syncLayerSources();
     renderSourcesBar();
     updateStageVisibility();
     if(viewedId) drawWaveform();
@@ -710,6 +976,7 @@
     if(!s) return;
     s.enabled = !s.enabled;
     if(s.enabled) viewedId = id;
+    syncLayerSources();
     renderSourcesBar();
     if(viewedId === id) drawWaveform();
     updatePlayEnabled();
@@ -747,43 +1014,32 @@
   var mediaRecorder = null, recordChunks = [], recordStream = null, recordTimerId = null, recordStartTs = 0, recordCounter = 0;
 
   var micBtn = document.getElementById("mic-btn");
-  if(micBtn){
+  if(!micBtn){
+    micBtn = document.createElement("button");
+    micBtn.type = "button";
+    micBtn.className = "bar-btn mic";
+    micBtn.textContent = "\uD83C\uDFA4 LIVE MIC";
     micBtn.title = "Use the microphone as a live granular source";
-    micBtn.addEventListener("click", async function(){
-      if(micEnabled){
-        stopLiveMic();
-        micBtn.textContent = "\uD83C\uDFA4 LIVE MIC";
-        micBtn.classList.remove("recording");
-        statusEl.textContent = "live microphone stopped";
-        return;
-      }
-
-      micBtn.disabled = true;
-      micBtn.textContent = "\u2026 REQUESTING MIC";
-      try{
-        await startLiveMic();
-        micBtn.textContent = "\u25A0 STOP MIC";
-        micBtn.classList.add("recording");
-        statusEl.textContent = "live microphone granular input active";
-      }catch(err){
-        console.error(err);
-        micBtn.textContent = "\uD83C\uDFA4 LIVE MIC";
-        if(!window.isSecureContext){
-          statusEl.textContent = "open the HTTPS GitHub Pages link to use the microphone";
-        }else if(err && err.name === "NotAllowedError"){
-          statusEl.textContent = "microphone permission blocked; allow it in browser site settings";
-        }else if(err && err.name === "NotFoundError"){
-          statusEl.textContent = "no microphone was found on this device";
-        }else if(err && err.name === "NotReadableError"){
-          statusEl.textContent = "microphone is busy or unavailable";
-        }else{
-          statusEl.textContent = err && err.message ? err.message : "microphone access failed";
-        }
-      }finally{
-        micBtn.disabled = false;
-      }
-    });
+    recordBtn.parentElement.insertBefore(micBtn, recordBtn);
   }
+  micBtn.addEventListener("click", async function(){
+    if(micEnabled){
+      stopLiveMic();
+      micBtn.textContent = "\uD83C\uDFA4 LIVE MIC";
+      micBtn.classList.remove("recording");
+      statusEl.textContent = "live microphone stopped";
+      return;
+    }
+    try{
+      await startLiveMic();
+      micBtn.textContent = "\u25A0 STOP MIC";
+      micBtn.classList.add("recording");
+      statusEl.textContent = "live microphone granular input active";
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = "microphone access denied";
+    }
+  });
 
   recordBtn.addEventListener("click", async function(){
     if(mediaRecorder && mediaRecorder.state === "recording"){
