@@ -227,6 +227,12 @@
     layerNames.forEach(function(name, index){
       var layer = layers[name];
       if(!layer) return;
+      if(layer.sourceIsManual){
+        if(layer.params.source && !sources.some(function(s){ return s.id === layer.params.source.id; })){ 
+          layer.params.source = null;
+        }
+        return;
+      }
       layer.params.source = sources[index] || null;
     });
   }
@@ -241,9 +247,10 @@
 
       var strip = document.createElement("div");
       strip.className = "mixer-strip" + (name === activeLayer ? " active" : "");
+      strip.dataset.layer = name;
 
-      var labelWrap = document.createElement("div");
-      labelWrap.className = "mixer-label-wrap";
+      var topRow = document.createElement("div");
+      topRow.className = "mixer-strip-top";
 
       var label = document.createElement("input");
       label.type = "text";
@@ -253,14 +260,21 @@
         layer.name = label.value || layerLabel(name);
       });
 
-      var selectBtn = document.createElement("button");
-      selectBtn.type = "button";
-      selectBtn.className = "mixer-select";
-      selectBtn.textContent = "Select";
-      selectBtn.addEventListener("click", function(){ setActiveLayer(name); });
+      var muteBtn = document.createElement("button");
+      muteBtn.type = "button";
+      muteBtn.className = "mixer-mute" + (layer.muted ? " muted" : "");
+      muteBtn.textContent = layer.muted ? "Muted" : "Mute";
+      muteBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        layer.setMuted(!layer.muted);
+        renderMixerSidebar();
+      });
+
+      topRow.appendChild(label);
+      topRow.appendChild(muteBtn);
 
       var faderWrap = document.createElement("div");
-      faderWrap.className = "mixer-vertical";
+      faderWrap.className = "mixer-fader-wrap";
 
       var faderLabel = document.createElement("div");
       faderLabel.className = "mixer-fader-label";
@@ -273,17 +287,33 @@
       fader.max = "1";
       fader.step = "0.01";
       fader.value = String(layer.volume);
+      fader.style.writingMode = "vertical-lr";
+      fader.style.direction = "rtl";
+      fader.style.height = "100px";
       fader.addEventListener("input", function(){
         layer.setVolume(parseFloat(fader.value));
       });
 
-      var muteBtn = document.createElement("button");
-      muteBtn.type = "button";
-      muteBtn.className = "mixer-mute" + (layer.muted ? " muted" : "");
-      muteBtn.textContent = layer.muted ? "Muted" : "Mute";
-      muteBtn.addEventListener("click", function(){
-        layer.setMuted(!layer.muted);
-        renderMixerSidebar();
+      faderWrap.appendChild(faderLabel);
+      faderWrap.appendChild(fader);
+
+      var sourceSelect = document.createElement("select");
+      sourceSelect.className = "mixer-source-select";
+      var emptyOpt = document.createElement("option");
+      emptyOpt.value = "";
+      emptyOpt.textContent = "— empty —";
+      sourceSelect.appendChild(emptyOpt);
+      sources.forEach(function(source){
+        var opt = document.createElement("option");
+        opt.value = source.id;
+        opt.textContent = source.name;
+        sourceSelect.appendChild(opt);
+      });
+      sourceSelect.value = layer.params.source ? layer.params.source.id : "";
+      sourceSelect.addEventListener("change", function(){
+        var selectedId = sourceSelect.value;
+        layer.sourceIsManual = true;
+        layer.params.source = selectedId ? sources.find(function(source){ return source.id === selectedId; }) || null : null;
       });
 
       var intensityWrap = document.createElement("div");
@@ -291,7 +321,7 @@
 
       var intensityLabel = document.createElement("div");
       intensityLabel.className = "mixer-intensity-label";
-      intensityLabel.textContent = "Intensity";
+      intensityLabel.textContent = "INTENSITY";
 
       var intensity = document.createElement("input");
       intensity.type = "range";
@@ -300,21 +330,24 @@
       intensity.max = "1";
       intensity.step = "0.01";
       intensity.value = String(layer.intensity || 0);
-      intensity.addEventListener("input", function(){
+      intensity.addEventListener("input", function(e){
+        e.stopPropagation();
         applyLayerIntensity(name, parseFloat(intensity.value));
       });
 
-      faderWrap.appendChild(faderLabel);
-      faderWrap.appendChild(fader);
       intensityWrap.appendChild(intensityLabel);
       intensityWrap.appendChild(intensity);
 
-      labelWrap.appendChild(label);
-      labelWrap.appendChild(selectBtn);
-      strip.appendChild(labelWrap);
+      strip.appendChild(topRow);
       strip.appendChild(faderWrap);
-      strip.appendChild(muteBtn);
+      strip.appendChild(sourceSelect);
       strip.appendChild(intensityWrap);
+
+      strip.addEventListener("click", function(e){
+        if(e.target.closest(".mixer-fader, .mixer-mute, .mixer-intensity, .mixer-source-select, .mixer-label")) return;
+        setActiveLayer(name);
+      });
+
       mixerSidebar.appendChild(strip);
     });
   }
@@ -350,6 +383,7 @@
       volume: 0.8,
       muted: false,
       intensity: 0,
+      sourceIsManual: false,
       outputGain: null,
       params: params,
       setVolume: function(v){
@@ -382,14 +416,7 @@
     var running = false;
 
     function triggerLayerGrain(){
-      var sourceRef = params.source && !params.source.muted ? params.source : null;
-      if(!sourceRef){
-        if(params.source && params.source.muted) return;
-        var enabledPool = sources.filter(function(s){ return s.enabled; });
-        if(enabledPool.length){
-          sourceRef = enabledPool[Math.floor(Math.random()*enabledPool.length)];
-        }
-      }
+      var sourceRef = params.source;
       var outDur = params.size/1000;
       var rate = Math.pow(2, params.pitch/12);
       var fmRate = params.fmRate;
@@ -450,7 +477,7 @@
         return;
       }
 
-      if(!sourceRef || !sourceRef.buffer) return;
+      if(!sourceRef || !sourceRef.buffer || sourceRef.muted) return;
 
       if(params.fluxMute > 0 && Math.random()*100 < params.fluxMute) return;
 

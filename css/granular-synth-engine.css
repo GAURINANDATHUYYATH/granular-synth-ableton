@@ -18,7 +18,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     display:flex;
     justify-content:center;
-    padding:28px 260px 60px 16px;
+    padding:28px 16px 160px;
   }
   .app{ width:100%; max-width:960px; }
 
@@ -98,56 +98,48 @@
   .hint{ font-size:11px; color:var(--text-dim); }
 
   .mixer-sidebar{
-    position:fixed; top:28px; right:18px; width:220px;
-    display:flex; flex-direction:column; gap:10px;
-    padding:12px 10px; border:1px solid var(--border); border-radius:12px;
-    background:var(--bg-panel); box-shadow:0 16px 32px rgba(0,0,0,.18);
+    position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
+    width:min(96vw, 1280px); display:flex; gap:8px; justify-content:space-between;
+    padding:8px 10px; border:1px solid var(--border); border-radius:12px;
+    background:var(--bg-panel); box-shadow:0 16px 32px rgba(0,0,0,.18); z-index:10;
   }
   .mixer-strip{
-    display:flex; flex-direction:column; gap:8px; padding:8px; border:1px solid var(--border);
-    border-radius:10px; background:var(--bg-panel-alt);
+    flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:6px; padding:6px 7px;
+    border:1px solid var(--border); border-radius:8px; background:var(--bg-panel-alt);
+    cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
   }
-  .mixer-strip.active{ border-color:var(--accent-2); box-shadow:0 0 0 1px var(--accent-2); }
-  .mixer-label-wrap{ display:flex; flex-direction:column; gap:6px; }
+  .mixer-strip.active{ border-color:var(--accent-2); box-shadow:0 0 0 1px var(--accent-2); background:var(--bg-panel); }
+  .mixer-strip-top{ display:flex; align-items:center; gap:6px; }
   .mixer-label{
-    width:100%; border:1px solid var(--border); border-radius:6px;
-    background:transparent; color:var(--text); padding:6px 8px; font-size:11px; letter-spacing:.08em;
+    flex:1; min-width:0; border:1px solid var(--border); border-radius:6px;
+    background:transparent; color:var(--text); padding:4px 6px; font-size:10px; letter-spacing:.06em;
     text-transform:uppercase;
   }
   .mixer-label:focus-visible{ outline:1px solid var(--accent-2); }
-  .mixer-select{
-    border:1px solid var(--border); background:var(--bg-panel); color:var(--text);
-    border-radius:6px; cursor:pointer; font-size:10px; letter-spacing:.08em; padding:6px 8px;
-    text-transform:uppercase;
-  }
-  .mixer-vertical{
-    display:flex; flex-direction:column; align-items:center; gap:6px;
-  }
+  .mixer-fader-wrap,
+  .mixer-intensity-wrap{ display:flex; flex-direction:column; align-items:center; gap:4px; }
   .mixer-fader-label,
   .mixer-intensity-label{
-    font-size:9px; letter-spacing:.08em; color:var(--text-dim); text-transform:uppercase;
+    font-size:8px; letter-spacing:.08em; color:var(--text-dim); text-transform:uppercase;
   }
   .mixer-fader,
-  .mixer-intensity{
-    width:100%; accent-color:var(--accent-2);
-  }
+  .mixer-intensity{ width:100%; accent-color:var(--accent-2); }
   .mixer-fader{
-    writing-mode: bt-lr;
-    -webkit-appearance: slider-vertical;
-    appearance: slider-vertical;
-    width:12px;
-    height:100px;
-    min-height:100px;
+    width:12px; height:100px; min-height:100px; writing-mode:vertical-lr; direction:rtl;
+  }
+  .mixer-source-select{
+    width:100%; font-size:9px; letter-spacing:.03em; padding:4px 5px; border-radius:5px;
+    border:1px solid var(--border); background:var(--bg-panel); color:var(--text);
   }
   .mixer-mute{
-    border:1px solid var(--border); border-radius:6px; background:var(--bg-panel);
-    color:var(--text); cursor:pointer; font-size:10px; letter-spacing:.08em; padding:6px 8px;
-    text-transform:uppercase;
+    border:1px solid var(--border); border-radius:5px; background:var(--bg-panel);
+    color:var(--text); cursor:pointer; font-size:9px; letter-spacing:.05em; padding:4px 6px;
+    text-transform:uppercase; min-width:52px;
   }
   .mixer-mute.muted{
     background:transparent; color:var(--text-dim); border-color:var(--border); opacity:.6;
   }
-  .mixer-intensity-wrap{ display:flex; flex-direction:column; gap:6px; }
+  .mixer-intensity-wrap{ margin-top:2px; }
 
   .controls{ display:flex; flex-wrap:wrap; gap:30px; margin-top:14px; padding-top:16px; border-top:1px solid var(--border); }
   .group{ flex:1 1 230px; min-width:210px; }
