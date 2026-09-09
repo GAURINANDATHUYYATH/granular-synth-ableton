@@ -642,19 +642,26 @@
     toggle.type = "button";
     toggle.className = "mixer-looper-toggle";
     toggle.textContent = looper.expanded ? "LOOPER ▾" : "LOOPER ▸";
-    toggle.addEventListener("click", function(){ setLayerLooperExpanded(layerName, !looper.expanded); });
+    toggle.addEventListener("click", function(e){
+      e.stopPropagation();
+      setLayerLooperExpanded(layerName, !looper.expanded);
+    });
 
     var sourceBtn = document.createElement("button");
     sourceBtn.type = "button";
     sourceBtn.className = "mixer-looper-btn" + (looper.sourceMode === "mic" ? " active" : "");
     sourceBtn.textContent = looper.sourceMode === "mic" ? "REC FROM MIC" : "REC FROM LAYER";
-    sourceBtn.addEventListener("click", function(){ toggleLayerLooperSourceMode(layerName); });
+    sourceBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      toggleLayerLooperSourceMode(layerName);
+    });
 
     var armBtn = document.createElement("button");
     armBtn.type = "button";
     armBtn.className = "mixer-looper-btn" + (looper.recording ? " recording" : "");
     armBtn.textContent = looper.recording ? "STOP" : "ARM";
-    armBtn.addEventListener("click", function(){
+    armBtn.addEventListener("click", function(e){
+      e.stopPropagation();
       if(looper.recording){
         stopLayerLooper(layerName, false);
       } else {
@@ -666,19 +673,28 @@
     overdubBtn.type = "button";
     overdubBtn.className = "mixer-looper-btn" + (looper.overdub ? " active" : "");
     overdubBtn.textContent = looper.overdub ? "OVERDUB ON" : "OVERDUB";
-    overdubBtn.addEventListener("click", function(){ toggleLayerOverdub(layerName); });
+    overdubBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      toggleLayerOverdub(layerName);
+    });
 
     var clearBtn = document.createElement("button");
     clearBtn.type = "button";
     clearBtn.className = "mixer-looper-btn";
     clearBtn.textContent = "CLEAR";
-    clearBtn.addEventListener("click", function(){ clearLayerLoop(layerName); });
+    clearBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      clearLayerLoop(layerName);
+    });
 
     var useLoopBtn = document.createElement("button");
     useLoopBtn.type = "button";
     useLoopBtn.className = "mixer-looper-btn" + (looper.useLoopSource ? " active" : "");
     useLoopBtn.textContent = looper.useLoopSource ? "USE LOOP ON" : "USE LOOP OFF";
-    useLoopBtn.addEventListener("click", function(){ toggleLayerLoopUse(layerName); });
+    useLoopBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      toggleLayerLoopUse(layerName);
+    });
 
     top.appendChild(toggle);
     top.appendChild(sourceBtn);
@@ -715,8 +731,6 @@
       wave._dragLayer = null;
       wave._dragMode = null;
     });
-
-    drawLoopTrimWaveform(layer, wave);
 
     waveWrap.appendChild(wave);
     wrap.appendChild(top);
@@ -837,6 +851,11 @@
       });
 
       mixerSidebar.appendChild(strip);
+
+      var looperWave = strip.querySelector(".mixer-looper-wave");
+      if(looperWave){
+        drawLoopTrimWaveform(layer, looperWave);
+      }
     });
   }
 
