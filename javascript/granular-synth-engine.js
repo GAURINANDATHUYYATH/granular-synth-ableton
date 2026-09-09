@@ -167,6 +167,8 @@
   var layerNames = ["A", "B", "C", "D", "E", "F"];
   var layers = {};
   var mixerSidebar = document.getElementById("mixer-sidebar");
+  var LOOP_MAX_SECONDS = 45;
+  var LOOP_FADE_MS = 24;
 
   layerNames.forEach(function(layerName){
     layers[layerName] = null;
@@ -227,14 +229,499 @@
     layerNames.forEach(function(name, index){
       var layer = layers[name];
       if(!layer) return;
+      if(layer.looper && layer.looper.useLoopSource && layer.loopSource){
+        layer.params.source = layer.loopSource;
+        return;
+      }
       if(layer.sourceIsManual){
         if(layer.params.source && !sources.some(function(s){ return s.id === layer.params.source.id; })){ 
           layer.params.source = null;
         }
         return;
       }
-      layer.params.source = sources[index] || null;
+      layer.baseSource = sources[index] || null;
+      layer.params.source = layer.baseSource;
     });
+  }
+
+  function buildCrossfadedLoopBuffer(buffer, fadeMs){
+    if(!buffer || buffer.length < 2 || !audioCtx) return buffer;
+    var fadeFrames = Math.max(1, Math.min(Math.floor(((fadeMs || LOOP_FADE_MS)/1000) * buffer.sampleRate), Math.floor(buffer.length / 6)));
+    var out = audioCtx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+    for(var c=0; c<buffer.numberOfChannels; c++){
+      var src = buffer.getChannelData(c);
+      var dst = out.getChannelData(c);
+      for(var i=0; i<src.length; i++) dst[i] = src[i];
+      var endStart = Math.max(0, src.length - fadeFrames);
+      for(var i=0; i<fadeFrames; i++){
+        var x = (i / Math.max(1, fadeFrames - 1));
+        var gainA = Math.sqrt(1 - x);
+        var gainB = Math.sqrt(x);
+        var srcIdx = endStart + i;
+        dst[i] = src[i] * gainA + src[srcIdx] * gainB;
+        dst[srcIdx] = src[srcIdx] * gainA + src[i] * gainB;
+      }
+    }
+    return out;
+  }
+
+  function sliceAudioBuffer(buffer, startSec, endSec){
+    if(!buffer || !audioCtx) return null;
+    var sr = buffer.sampleRate;
+    var startFrame = Math.max(0, Math.min(buffer.length, Math.floor(startSec * sr)));
+    var endFrame = Math.max(startFrame + 1, Math.min(buffer.length, Math.floor(endSec * sr)));
+    var frameCount = Math.max(1, endFrame - startFrame);
+    var out = audioCtx.createBuffer(buffer.numberOfChannels, frameCount, sr);
+    for(var c=0; c<buffer.numberOfChannels; c++){
+      var src = buffer.getChannelData(c);
+      var dst = out.getChannelData(c);
+      for(var i=0; i<frameCount; i++){
+        dst[i] = src[startFrame + i] || 0;
+      }
+    }
+    return out;
+  }
+
+  function mixAudioBuffers(baseBuffer, overdubBuffer){
+    if(!baseBuffer || !overdubBuffer || !audioCtx) return baseBuffer || overdubBuffer;
+    var len = Math.max(baseBuffer.length, overdubBuffer.length);
+    var out = audioCtx.createBuffer(baseBuffer.numberOfChannels, len, baseBuffer.sampleRate);
+    for(var c=0; c<baseBuffer.numberOfChannels; c++){
+      var base = baseBuffer.getChannelData(c);
+      var over = overdubBuffer.getChannelData(c);
+      var dst = out.getChannelData(c);
+      for(var i=0; i<len; i++){
+        var a = base[i] || 0;
+        var b = over[i] || 0;
+        var mixed = (a * 0.75) + (b * 0.75);
+        dst[i] = Math.max(-1, Math.min(1, mixed));
+      }
+    }
+    return out;
+  }
+
+  function ensureLayerLooper(layerName){
+    var layer = layers[layerName];
+    if(!layer) return null;
+    if(!layer.looper){
+      layer.looper = {
+        sourceMode: "mic",
+        armed: false,
+        recording: false,
+        overdub: false,
+        useLoopSource: false,
+        expanded: false,
+        loopBuffer: null,
+        recordedBuffer: null,
+        loopSource: null,
+        loopStart: 0,
+        loopEnd: 0,
+        trimStart: 0,
+        trimEnd: 1,
+        processor: null,
+        zeroGain: null,
+        accumL: [],
+        accumR: [],
+        recordedFrames: 0,
+        recordStartTs: 0
+      };
+      layer.baseSource = layer.params.source || null;
+    }
+    return layer.looper;
+  }
+
+  function applyLayerLoopSourceState(layer){
+    if(!layer) return;
+    var looper = layer.looper;
+    if(!looper) return;
+    if(looper.useLoopSource && looper.loopBuffer){
+      layer.loopSource = layer.loopSource || {
+        id: "loop-" + (layer.name || layerLabel(layer.name || "A")),
+        name: (layer.name || layerLabel(layer.name || "A")) + " loop",
+        buffer: looper.loopBuffer,
+        enabled: true,
+        muted: false,
+        isLoop: true
+      };
+      layer.loopSource.buffer = looper.loopBuffer;
+      layer.loopSource.name = (layer.name || layerLabel(layer.name || "A")) + " loop";
+      layer.params.source = layer.loopSource;
+      return;
+    }
+    layer.params.source = layer.baseSource || null;
+  }
+
+  function stopLayerLooper(layerName, autoCapReached){
+    var layer = layers[layerName];
+    if(!layer) return;
+    var looper = ensureLayerLooper(layerName);
+    if(!looper || !looper.recording) return;
+
+    if(looper.processor){
+      looper.processor.disconnect();
+      looper.processor.onaudioprocess = null;
+      looper.processor = null;
+    }
+    if(looper.zeroGain){
+      looper.zeroGain.disconnect();
+      looper.zeroGain = null;
+    }
+
+    looper.recording = false;
+    looper.armed = false;
+
+    if(looper.recordedFrames > 0){
+      var buffer = audioCtx.createBuffer(2, looper.recordedFrames, audioCtx.sampleRate);
+      var left = buffer.getChannelData(0);
+      var right = buffer.getChannelData(1);
+      for(var i=0; i<looper.recordedFrames; i++){
+        left[i] = looper.accumL[i] || 0;
+        right[i] = looper.accumR[i] || 0;
+      }
+
+      looper.recordedBuffer = buffer;
+      looper.trimStart = 0;
+      looper.trimEnd = 1;
+      looper.loopStart = 0;
+      looper.loopEnd = buffer.duration;
+
+      var trimmed = sliceAudioBuffer(buffer, looper.loopStart, looper.loopEnd);
+      looper.loopBuffer = buildCrossfadedLoopBuffer(trimmed, LOOP_FADE_MS);
+      looper.loopSource = {
+        id: "loop-" + layerName,
+        name: (layer.name || layerLabel(layerName)) + " loop",
+        buffer: looper.loopBuffer,
+        enabled: true,
+        muted: false,
+        isLoop: true
+      };
+
+      if(looper.overdub && layer.baseSource && layer.baseSource.buffer){
+        var mixed = mixAudioBuffers(layer.baseSource.buffer, looper.loopBuffer);
+        looper.loopBuffer = buildCrossfadedLoopBuffer(mixed, LOOP_FADE_MS);
+        looper.loopSource.buffer = looper.loopBuffer;
+      }
+
+      if(looper.overdub && layer.loopSource && layer.loopSource.buffer){
+        looper.loopSource.buffer = looper.loopBuffer;
+      }
+
+      if(looper.useLoopSource){
+        layer.params.source = looper.loopSource;
+      } else {
+        layer.params.source = layer.baseSource || null;
+      }
+
+      statusEl.textContent = autoCapReached
+        ? "recorded loop capped at 45s — loop saved"
+        : "loop recorded and ready to use";
+    } else {
+      statusEl.textContent = "nothing recorded";
+    }
+
+    if(looper.sourceMode === "mic" && micEnabled){
+      looper.recording = false;
+    }
+
+    looper.accumL = [];
+    looper.accumR = [];
+    looper.recordedFrames = 0;
+    renderMixerSidebar();
+  }
+
+  function drawLoopTrimWaveform(layer, canvas){
+    if(!canvas) return;
+    var looper = layer && layer.looper;
+    if(!looper || !looper.recordedBuffer){
+      var ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    var dims = sizeCanvas(canvas);
+    var ctx = dims.ctx;
+    var w = dims.w;
+    var h = dims.h;
+    var data = looper.recordedBuffer.getChannelData(0);
+    var step = Math.max(1, Math.ceil(data.length / w));
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#1d1b22";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "#4a4854";
+    ctx.beginPath();
+    for(var x=0; x<w; x++){
+      var min=1, max=-1;
+      var start = x*step;
+      for(var j=0; j<step; j++){
+        var idx = start + j;
+        if(idx >= data.length) break;
+        var v = data[idx];
+        if(v < min) min = v;
+        if(v > max) max = v;
+      }
+      var y1 = (1-(max+1)/2)*h;
+      var y2 = (1-(min+1)/2)*h;
+      ctx.moveTo(x+0.5, y1);
+      ctx.lineTo(x+0.5, y2);
+    }
+    ctx.stroke();
+
+    var startX = looper.trimStart * w;
+    var endX = looper.trimEnd * w;
+    ctx.fillStyle = "rgba(95,184,176,0.18)";
+    ctx.fillRect(startX, 0, Math.max(1, endX - startX), h);
+    ctx.strokeStyle = "#5fb8b0";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(startX, 0);
+    ctx.lineTo(startX, h);
+    ctx.moveTo(endX, 0);
+    ctx.lineTo(endX, h);
+    ctx.stroke();
+  }
+
+  function updateLayerLoopTrim(layerName, canvas, clientX){
+    var layer = layers[layerName];
+    if(!layer || !layer.looper || !layer.looper.recordedBuffer) return;
+    var rect = canvas.getBoundingClientRect();
+    var px = Math.min(Math.max(clientX - rect.left, 0), rect.width);
+    var dims = sizeCanvas(canvas);
+    var norm = Math.min(1, Math.max(0, px / Math.max(1, dims.w)));
+    var looper = layer.looper;
+    var currentStart = looper.trimStart;
+    var currentEnd = looper.trimEnd;
+    var nextStart = currentStart;
+    var nextEnd = currentEnd;
+
+    if(Math.abs(norm - currentStart) < Math.abs(norm - currentEnd)){
+      nextStart = Math.min(Math.max(norm, 0), Math.max(0, currentEnd - 0.05));
+    } else {
+      nextEnd = Math.max(Math.min(norm, 1), Math.min(1, currentStart + 0.05));
+    }
+
+    looper.trimStart = Math.min(nextStart, nextEnd - 0.05);
+    looper.trimEnd = Math.max(nextEnd, looper.trimStart + 0.05);
+    looper.loopStart = looper.trimStart * looper.recordedBuffer.duration;
+    looper.loopEnd = looper.trimEnd * looper.recordedBuffer.duration;
+
+    var trimmed = sliceAudioBuffer(looper.recordedBuffer, looper.loopStart, looper.loopEnd);
+    looper.loopBuffer = buildCrossfadedLoopBuffer(trimmed, LOOP_FADE_MS);
+    looper.loopSource = {
+      id: "loop-" + layerName,
+      name: (layer.name || layerLabel(layerName)) + " loop",
+      buffer: looper.loopBuffer,
+      enabled: true,
+      muted: false,
+      isLoop: true
+    };
+    applyLayerLoopSourceState(layer);
+    drawLoopTrimWaveform(layer, canvas);
+  }
+
+  function startLayerLooper(layerName){
+    var layer = layers[layerName];
+    if(!layer) return;
+    var looper = ensureLayerLooper(layerName);
+    if(!looper) return;
+
+    if(looper.recording) return;
+    if(looper.sourceMode === "mic" && !micEnabled){
+      statusEl.textContent = "Enable LIVE MIC first";
+      return;
+    }
+
+    ensureContext();
+    looper.recording = true;
+    looper.armed = true;
+    looper.recordedFrames = 0;
+    looper.accumL = [];
+    looper.accumR = [];
+    looper.processor = audioCtx.createScriptProcessor(4096, 2, 2);
+    looper.zeroGain = audioCtx.createGain();
+    looper.zeroGain.gain.value = 0;
+
+    looper.processor.onaudioprocess = function(e){
+      var inL = e.inputBuffer.getChannelData(0);
+      var inR = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : inL;
+      var maxFrames = Math.floor(LOOP_MAX_SECONDS * audioCtx.sampleRate);
+      var available = maxFrames - looper.recordedFrames;
+      var frameCount = Math.min(inL.length, available);
+      for(var i=0; i<frameCount; i++){
+        looper.accumL.push(inL[i]);
+        looper.accumR.push(inR[i]);
+      }
+      looper.recordedFrames += frameCount;
+      if(looper.recordedFrames >= maxFrames){
+        stopLayerLooper(layerName, true);
+      }
+    };
+
+    if(looper.sourceMode === "mic"){
+      micSource.connect(looper.processor);
+    } else {
+      layer.outputGain.connect(looper.processor);
+    }
+
+    looper.processor.connect(looper.zeroGain);
+    looper.zeroGain.connect(audioCtx.destination);
+
+    looper.recordStartTs = performance.now();
+    renderMixerSidebar();
+  }
+
+  function toggleLayerLooperSourceMode(layerName){
+    var layer = layers[layerName];
+    if(!layer) return;
+    var looper = ensureLayerLooper(layerName);
+    looper.sourceMode = looper.sourceMode === "mic" ? "layer" : "mic";
+    renderMixerSidebar();
+  }
+
+  function toggleLayerLoopUse(layerName){
+    var layer = layers[layerName];
+    if(!layer) return;
+    var looper = ensureLayerLooper(layerName);
+    looper.useLoopSource = !looper.useLoopSource;
+    applyLayerLoopSourceState(layer);
+    renderMixerSidebar();
+  }
+
+  function clearLayerLoop(layerName){
+    var layer = layers[layerName];
+    if(!layer) return;
+    var looper = ensureLayerLooper(layerName);
+    looper.loopBuffer = null;
+    looper.recordedBuffer = null;
+    looper.loopSource = null;
+    looper.useLoopSource = false;
+    looper.overdub = false;
+    looper.recordedFrames = 0;
+    looper.accumL = [];
+    looper.accumR = [];
+    layer.params.source = layer.baseSource || null;
+    statusEl.textContent = "loop cleared for " + (layer.name || layerLabel(layerName));
+    renderMixerSidebar();
+  }
+
+  function toggleLayerOverdub(layerName){
+    var layer = layers[layerName];
+    if(!layer) return;
+    var looper = ensureLayerLooper(layerName);
+    looper.overdub = !looper.overdub;
+    renderMixerSidebar();
+  }
+
+  function setLayerLooperExpanded(layerName, expanded){
+    var layer = layers[layerName];
+    if(!layer) return;
+    var looper = ensureLayerLooper(layerName);
+    looper.expanded = expanded;
+    renderMixerSidebar();
+  }
+
+  function setLayerLooperFromInput(layerName){
+    var layer = layers[layerName];
+    if(!layer) return;
+    var looper = ensureLayerLooper(layerName);
+    if(looper && looper.recordedBuffer){
+      looper.useLoopSource = !looper.useLoopSource;
+      applyLayerLoopSourceState(layer);
+    }
+  }
+
+  function buildLayerLooperHTML(layerName, layer){
+    var looper = ensureLayerLooper(layerName);
+    var wrap = document.createElement("div");
+    wrap.className = "mixer-looper" + (looper.expanded ? " expanded" : "");
+
+    var top = document.createElement("div");
+    top.className = "mixer-looper-top";
+
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "mixer-looper-toggle";
+    toggle.textContent = looper.expanded ? "LOOPER ▾" : "LOOPER ▸";
+    toggle.addEventListener("click", function(){ setLayerLooperExpanded(layerName, !looper.expanded); });
+
+    var sourceBtn = document.createElement("button");
+    sourceBtn.type = "button";
+    sourceBtn.className = "mixer-looper-btn" + (looper.sourceMode === "mic" ? " active" : "");
+    sourceBtn.textContent = looper.sourceMode === "mic" ? "REC FROM MIC" : "REC FROM LAYER";
+    sourceBtn.addEventListener("click", function(){ toggleLayerLooperSourceMode(layerName); });
+
+    var armBtn = document.createElement("button");
+    armBtn.type = "button";
+    armBtn.className = "mixer-looper-btn" + (looper.recording ? " recording" : "");
+    armBtn.textContent = looper.recording ? "STOP" : "ARM";
+    armBtn.addEventListener("click", function(){
+      if(looper.recording){
+        stopLayerLooper(layerName, false);
+      } else {
+        startLayerLooper(layerName);
+      }
+    });
+
+    var overdubBtn = document.createElement("button");
+    overdubBtn.type = "button";
+    overdubBtn.className = "mixer-looper-btn" + (looper.overdub ? " active" : "");
+    overdubBtn.textContent = looper.overdub ? "OVERDUB ON" : "OVERDUB";
+    overdubBtn.addEventListener("click", function(){ toggleLayerOverdub(layerName); });
+
+    var clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "mixer-looper-btn";
+    clearBtn.textContent = "CLEAR";
+    clearBtn.addEventListener("click", function(){ clearLayerLoop(layerName); });
+
+    var useLoopBtn = document.createElement("button");
+    useLoopBtn.type = "button";
+    useLoopBtn.className = "mixer-looper-btn" + (looper.useLoopSource ? " active" : "");
+    useLoopBtn.textContent = looper.useLoopSource ? "USE LOOP ON" : "USE LOOP OFF";
+    useLoopBtn.addEventListener("click", function(){ toggleLayerLoopUse(layerName); });
+
+    top.appendChild(toggle);
+    top.appendChild(sourceBtn);
+    top.appendChild(armBtn);
+    top.appendChild(overdubBtn);
+    top.appendChild(clearBtn);
+    top.appendChild(useLoopBtn);
+
+    var waveWrap = document.createElement("div");
+    waveWrap.className = "mixer-looper-wave-wrap";
+
+    var wave = document.createElement("canvas");
+    wave.className = "mixer-looper-wave";
+    wave.dataset.layer = layerName;
+    wave.addEventListener("pointerdown", function(e){
+      if(!looper.recordedBuffer) return;
+      var dims = sizeCanvas(wave);
+      var rect = wave.getBoundingClientRect();
+      var px = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+      var norm = Math.min(1, Math.max(0, px / Math.max(1, dims.w)));
+      wave._dragMode = Math.abs(norm - looper.trimStart) < Math.abs(norm - looper.trimEnd) ? "start" : "end";
+      wave._dragLayer = layerName;
+      wave.setPointerCapture(e.pointerId);
+    });
+    wave.addEventListener("pointermove", function(e){
+      if(!wave._dragLayer || wave._dragLayer !== layerName) return;
+      updateLayerLoopTrim(layerName, wave, e.clientX);
+    });
+    wave.addEventListener("pointerup", function(){
+      wave._dragLayer = null;
+      wave._dragMode = null;
+    });
+    wave.addEventListener("pointerleave", function(){
+      wave._dragLayer = null;
+      wave._dragMode = null;
+    });
+
+    drawLoopTrimWaveform(layer, wave);
+
+    waveWrap.appendChild(wave);
+    wrap.appendChild(top);
+    wrap.appendChild(waveWrap);
+    return wrap;
   }
 
   function renderMixerSidebar(){
@@ -342,6 +829,7 @@
       strip.appendChild(faderWrap);
       strip.appendChild(sourceSelect);
       strip.appendChild(intensityWrap);
+      strip.appendChild(buildLayerLooperHTML(name, layer));
 
       strip.addEventListener("click", function(e){
         if(e.target.closest(".mixer-fader, .mixer-mute, .mixer-intensity, .mixer-source-select, .mixer-label")) return;
