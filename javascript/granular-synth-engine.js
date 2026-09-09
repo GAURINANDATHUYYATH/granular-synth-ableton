@@ -162,6 +162,7 @@
 
   var windowShape = "hann";
   var activeLayer = "A";
+  var uiMode = "patch";
   var suppressLayerSync = false;
   var NUM_LAYERS = 6;
   var layerNames = ["A", "B", "C", "D", "E", "F"];
@@ -176,6 +177,19 @@
 
   function layerLabel(layerName){
     return "Layer " + layerName;
+  }
+
+  function setUiMode(mode){
+    uiMode = mode === "perform" ? "perform" : "patch";
+    document.body.classList.toggle("perform-mode", uiMode === "perform");
+
+    var buttons = document.querySelectorAll("[data-ui-mode]");
+    for(var i=0; i<buttons.length; i++){
+      var btn = buttons[i];
+      var active = btn.dataset.uiMode === uiMode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    }
   }
 
   function getLayerProfile(layerName){
@@ -1207,6 +1221,13 @@
   var SCAN_HISTORY_WINDOW = 4000; // how many ms of trail the indicator shows
 
   initLayers();
+  setUiMode(uiMode);
+
+  document.querySelectorAll("[data-ui-mode]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      setUiMode(btn.dataset.uiMode);
+    });
+  });
 
   document.getElementById("scanmode-seg").addEventListener("click", function(e){
     var btn = e.target.closest(".seg-btn");

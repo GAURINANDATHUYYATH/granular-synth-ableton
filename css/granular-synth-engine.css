@@ -20,7 +20,13 @@
     justify-content:center;
     padding:28px 16px 160px;
   }
+  body.perform-mode{
+    padding-bottom:120px;
+  }
   .app{ width:100%; max-width:960px; }
+  body.perform-mode .app{
+    display:flex; flex-direction:column; min-height:calc(100vh - 140px);
+  }
 
   .topbar{
     display:flex; align-items:center; justify-content:space-between; gap:16px;
@@ -89,6 +95,9 @@
   .overlay-canvas{ pointer-events:none; }
 
   .transport{ display:flex; align-items:center; gap:16px; padding:16px 2px 4px; flex-wrap:wrap; }
+  body.perform-mode .transport{
+    flex:1; justify-content:center; padding:0; margin-top:0;
+  }
   .play-btn{
     font-size:13px; font-weight:600; letter-spacing:.06em; padding:10px 22px; border-radius:8px;
     border:1px solid var(--accent); background:transparent; color:var(--accent); cursor:pointer;
@@ -103,10 +112,16 @@
     padding:8px 10px; border:1px solid var(--border); border-radius:12px;
     background:var(--bg-panel); box-shadow:0 16px 32px rgba(0,0,0,.18); z-index:10;
   }
+  body.perform-mode .mixer-sidebar{
+    width:min(98vw, 1360px); bottom:20px;
+  }
   .mixer-strip{
     flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:6px; padding:6px 7px;
     border:1px solid var(--border); border-radius:8px; background:var(--bg-panel-alt);
     cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  body.perform-mode .mixer-strip{
+    padding:8px 8px;
   }
   .mixer-strip.active{ border-color:var(--accent-2); box-shadow:0 0 0 1px var(--accent-2); background:var(--bg-panel); }
   .mixer-strip-top{ display:flex; align-items:center; gap:6px; }
@@ -208,6 +223,15 @@
   .seg-btn.active{ background:var(--accent-2); color:var(--bg); }
 
   .status-text{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+
+  body.perform-mode .sources-bar,
+  body.perform-mode .sources-hint,
+  body.perform-mode .stage,
+  body.perform-mode .controls,
+  body.perform-mode .documentation,
+  body.perform-mode .ideas{
+    display:none;
+  }
 
   .documentation{
     margin-top:40px; padding:24px 26px; background:var(--bg-panel);
