@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Granular — grain synthesis engine</title>
+<title>THARANGA — grain synthesis engine</title>
 <link rel="stylesheet" href="../css/granular-synth-engine.css?v=looper-2026-09-10">
 </head>
 <body>
@@ -11,8 +11,12 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark"></span>
-      <h1>GRANULAR</h1>
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 26 26" focusable="false">
+          <path d="M18.9 15.6c-1.9 2.3-5.1 3.7-8.3 3.3-3.5-.4-6.3-3.3-6.3-6.9 0-3.9 3.2-7.1 7.1-7.1 4.1 0 7.1 3.1 7.1 7.1 0 3.9-3.1 7.1-7.1 7.1-3.4 0-6.2-2.3-6.6-5.6"/>
+        </svg>
+      </span>
+      <h1>THARANGA</h1>
     </div>
     <div class="file-info">
       <span id="file-name">no sources loaded</span>
@@ -22,9 +26,18 @@
       <label for="master-volume">OUT</label>
       <input type="range" id="master-volume" min="0" max="100" value="70">
     </div>
-    <div class="seg topbar-mode" aria-label="UI mode">
-      <button class="seg-btn active" data-ui-mode="patch" type="button">PATCH</button>
-      <button class="seg-btn" data-ui-mode="perform" type="button">PERFORM</button>
+    <div class="topbar-controls">
+      <div class="seg topbar-mode" aria-label="UI mode">
+        <button class="seg-btn active" data-ui-mode="patch" type="button">PATCH</button>
+        <button class="seg-btn" data-ui-mode="perform" type="button">PERFORM</button>
+      </div>
+      <div class="seg phase-switcher" aria-label="Visual phase theme">
+        <button class="seg-btn active" data-phase="arrival" type="button">ARRIVAL</button>
+        <button class="seg-btn" data-phase="playfulness" type="button">PLAYFULNESS</button>
+        <button class="seg-btn" data-phase="storm" type="button">STORM</button>
+        <button class="seg-btn" data-phase="clearing" type="button">CLEARING</button>
+        <button class="seg-btn" data-phase="sunset" type="button">SUNSET</button>
+      </div>
     </div>
   </header>
 
@@ -278,23 +291,23 @@
 
   </div>
 <section class="documentation" aria-labelledby="documentation-title">
-  <h2 id="documentation-title">GRANULAR SYNTHESIS</h2>
+  <h2 id="documentation-title">THARANGA SYNTHESIS</h2>
   <div class="documentation-copy">In this method an already existing audio sample is broken down into tiny, microscopic pieces called grains. These grains are re-arranged by overlapping, stacked or randomized to create brand-new textures, tones or ambient soundscapes.
 
-<span class="documentation-heading">GRANULAR SYNTHESISER</span>
-It is either a software or a hardware that is capable of performing granular synthesis. It can turn any audio file into an instrument that you can play on a keyboard. While a traditional synthesizer can only generate basic sound waves like sine, square waves etc., a granular synthesizer uses an audio sample as it’s engine.
+<span class="documentation-heading">THARANGA SYNTHESISER</span>
+It is either a software or a hardware that is capable of performing Tharanga synthesis. It can turn any audio file into an instrument that you can play on a keyboard. While a traditional synthesizer can only generate basic sound waves like sine, square waves etc., a Tharanga synthesizer uses an audio sample as it’s engine.
 
-<span class="documentation-heading">DIFFERENT TYPES OF GRANULAR SYNTHESISERS</span>
-1.	Sample based: In these kinds of synthesizer’s grains are pulled from an audio file loaded inside it. This is a sample based granular synthesizer.
+<span class="documentation-heading">DIFFERENT TYPES OF THARANGA SYNTHESISERS</span>
+1.	Sample based: In these kinds of synthesizer’s grains are pulled from an audio file loaded inside it. This is a sample based Tharanga synthesizer.
 2.	Cloud/real time: Grains are pulled from a live input as it is happening. Here no pre-recorded audio file is used.
-3.	Physical/hardware granular units: Dedicated pedals and hardware synthesizers are used to do the same thing outside the software.
+3.	Physical/hardware Tharanga units: Dedicated pedals and hardware synthesizers are used to do the same thing outside the software.
 
-<span class="documentation-heading">WHERE A GRANULAR SYNTHESISER IS USED</span>
+<span class="documentation-heading">WHERE A THARANGA SYNTHESISER IS USED</span>
 1.	Ambient/experimental music production.
 2.	Sound design for film and games. (Turning a single recorded sound effect into and evolving texture.)
 3.	Glitch/IDM-style electronic music.
-<span class="documentation-heading">HOW THE GRANULAR-SYNTHESISER-ENGINE WORKS</span>
-Any sound uploaded into the granular synthesizer engine undergoes granular synthesis.
+<span class="documentation-heading">HOW THE THARANGA-SYNTHESISER-ENGINE WORKS</span>
+Any sound uploaded into the Tharanga synthesizer engine undergoes Tharanga synthesis.
 <span class="documentation-subheading">Position:</span> Marks where the grains are in the source audio.
 <span class="documentation-subheading">Scan:</span> Moves through the sound instead of sitting still. This is what lets the sound to evolve continuously instead of looping the same fragment forever. Can control the direction and how fast the scan moves.
 •	<span class="documentation-label">Linear:</span> Moves at a constant speed.

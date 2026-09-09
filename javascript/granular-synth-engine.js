@@ -163,6 +163,13 @@
   var windowShape = "hann";
   var activeLayer = "A";
   var uiMode = "patch";
+  var phaseThemes = {
+    arrival: { bg: "#12181c", accent: "#d9b872", accent2: "#5fb8b0" },
+    playfulness: { bg: "#10191f", accent: "#e8c14a", accent2: "#6fd0c4" },
+    storm: { bg: "#0a0a0d", accent: "#8b8fa3", accent2: "#4a4e5e" },
+    clearing: { bg: "#14181d", accent: "#d9a25f", accent2: "#6bb0a8" },
+    sunset: { bg: "#1a120e", accent: "#e8843d", accent2: "#c96b5f" }
+  };
   var suppressLayerSync = false;
   var NUM_LAYERS = 6;
   var layerNames = ["A", "B", "C", "D", "E", "F"];
@@ -187,6 +194,21 @@
     for(var i=0; i<buttons.length; i++){
       var btn = buttons[i];
       var active = btn.dataset.uiMode === uiMode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    }
+  }
+
+  function setPhaseTheme(name){
+    var theme = phaseThemes[name] || phaseThemes.arrival;
+    document.documentElement.style.setProperty("--bg", theme.bg);
+    document.documentElement.style.setProperty("--accent", theme.accent);
+    document.documentElement.style.setProperty("--accent-2", theme.accent2);
+
+    var buttons = document.querySelectorAll("[data-phase]");
+    for(var i=0; i<buttons.length; i++){
+      var btn = buttons[i];
+      var active = btn.dataset.phase === name;
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     }
@@ -1222,10 +1244,17 @@
 
   initLayers();
   setUiMode(uiMode);
+  setPhaseTheme("arrival");
 
   document.querySelectorAll("[data-ui-mode]").forEach(function(btn){
     btn.addEventListener("click", function(){
       setUiMode(btn.dataset.uiMode);
+    });
+  });
+
+  document.querySelectorAll("[data-phase]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      setPhaseTheme(btn.dataset.phase);
     });
   });
 
