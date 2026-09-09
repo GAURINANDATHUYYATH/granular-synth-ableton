@@ -163,16 +163,43 @@
   var windowShape = "hann";
   var activeLayer = "A";
   var suppressLayerSync = false;
-  var layers = { A: null, B: null, C: null };
-  var layerNames = ["A", "B", "C"];
-  var layerTabs = Array.prototype.slice.call(document.querySelectorAll(".layer-tab"));
+  var NUM_LAYERS = 6;
+  var layerNames = ["A", "B", "C", "D", "E", "F"];
+  var layers = {};
+  var mixerSidebar = document.getElementById("mixer-sidebar");
+
+  layerNames.forEach(function(layerName){
+    layers[layerName] = null;
+  });
+
+  function layerLabel(layerName){
+    return "Layer " + layerName;
+  }
+
+  function getLayerProfile(layerName){
+    var profiles = {
+      A: { size: 60, density: 12, jitter: 15 },
+      B: { size: 64, density: 15, jitter: 17 },
+      C: { size: 58, density: 18, jitter: 19 },
+      D: { size: 70, density: 20, jitter: 23 },
+      E: { size: 66, density: 22, jitter: 25 },
+      F: { size: 76, density: 24, jitter: 28 }
+    };
+    return profiles[layerName] || { size: 60, density: 12, jitter: 15 };
+  }
+
+  function applyLayerOutputLevel(layer, targetGain){
+    if(!layer || !layer.outputGain || !audioCtx) return;
+    var t = audioCtx.currentTime;
+    layer.outputGain.gain.cancelScheduledValues(t);
+    layer.outputGain.gain.setValueAtTime(layer.outputGain.gain.value, t);
+    layer.outputGain.gain.linearRampToValueAtTime(targetGain, t + 0.03);
+  }
 
   function setActiveLayer(layerName){
     if(!layers[layerName]) return;
     activeLayer = layerName;
-    layerTabs.forEach(function(tab){
-      tab.classList.toggle("active", tab.dataset.layer === layerName);
-    });
+    renderMixerSidebar();
     syncKnobsFromActiveLayer();
   }
 
@@ -204,13 +231,152 @@
     });
   }
 
-  function createGrainLayer(source, initialParams){
+  function renderMixerSidebar(){
+    if(!mixerSidebar) return;
+    mixerSidebar.innerHTML = "";
+
+    layerNames.forEach(function(name){
+      var layer = layers[name];
+      if(!layer) return;
+
+      var strip = document.createElement("div");
+      strip.className = "mixer-strip" + (name === activeLayer ? " active" : "");
+
+      var labelWrap = document.createElement("div");
+      labelWrap.className = "mixer-label-wrap";
+
+      var label = document.createElement("input");
+      label.type = "text";
+      label.className = "mixer-label";
+      label.value = layer.name || layerLabel(name);
+      label.addEventListener("input", function(){
+        layer.name = label.value || layerLabel(name);
+      });
+
+      var selectBtn = document.createElement("button");
+      selectBtn.type = "button";
+      selectBtn.className = "mixer-select";
+      selectBtn.textContent = "Select";
+      selectBtn.addEventListener("click", function(){ setActiveLayer(name); });
+
+      var faderWrap = document.createElement("div");
+      faderWrap.className = "mixer-vertical";
+
+      var faderLabel = document.createElement("div");
+      faderLabel.className = "mixer-fader-label";
+      faderLabel.textContent = "VOL";
+
+      var fader = document.createElement("input");
+      fader.type = "range";
+      fader.className = "mixer-fader";
+      fader.min = "0";
+      fader.max = "1";
+      fader.step = "0.01";
+      fader.value = String(layer.volume);
+      fader.addEventListener("input", function(){
+        layer.setVolume(parseFloat(fader.value));
+      });
+
+      var muteBtn = document.createElement("button");
+      muteBtn.type = "button";
+      muteBtn.className = "mixer-mute" + (layer.muted ? " muted" : "");
+      muteBtn.textContent = layer.muted ? "Muted" : "Mute";
+      muteBtn.addEventListener("click", function(){
+        layer.setMuted(!layer.muted);
+        renderMixerSidebar();
+      });
+
+      var intensityWrap = document.createElement("div");
+      intensityWrap.className = "mixer-intensity-wrap";
+
+      var intensityLabel = document.createElement("div");
+      intensityLabel.className = "mixer-intensity-label";
+      intensityLabel.textContent = "Intensity";
+
+      var intensity = document.createElement("input");
+      intensity.type = "range";
+      intensity.className = "mixer-intensity";
+      intensity.min = "0";
+      intensity.max = "1";
+      intensity.step = "0.01";
+      intensity.value = String(layer.intensity || 0);
+      intensity.addEventListener("input", function(){
+        applyLayerIntensity(name, parseFloat(intensity.value));
+      });
+
+      faderWrap.appendChild(faderLabel);
+      faderWrap.appendChild(fader);
+      intensityWrap.appendChild(intensityLabel);
+      intensityWrap.appendChild(intensity);
+
+      labelWrap.appendChild(label);
+      labelWrap.appendChild(selectBtn);
+      strip.appendChild(labelWrap);
+      strip.appendChild(faderWrap);
+      strip.appendChild(muteBtn);
+      strip.appendChild(intensityWrap);
+      mixerSidebar.appendChild(strip);
+    });
+  }
+
+  function applyLayerIntensity(layerName, intensityValue){
+    var layer = layers[layerName];
+    if(!layer) return;
+
+    var clamped = Math.min(1, Math.max(0, intensityValue));
+    layer.intensity = clamped;
+
+    function lerp(a, b, t){ return a + (b - a) * t; }
+
+    layer.params.density = lerp(4, 45, clamped);
+    layer.params.filter1Cutoff = lerp(800, 12000, clamped);
+    layer.params.jitter = lerp(10, 60, clamped);
+
+    if(layerName === activeLayer){
+      syncKnobsFromActiveLayer();
+    }
+  }
+
+  function createGrainLayer(source, initialParams, layerName){
     var params = {};
     Object.keys(knobs).forEach(function(name){
       params[name] = typeof initialParams[name] !== "undefined" ? initialParams[name] : knobs[name].getValue();
     });
     params.windowShape = initialParams && initialParams.windowShape ? initialParams.windowShape : windowShape;
     params.source = source || null;
+
+    var layer = {
+      name: layerLabel(layerName),
+      volume: 0.8,
+      muted: false,
+      intensity: 0,
+      outputGain: null,
+      params: params,
+      setVolume: function(v){
+        layer.volume = Math.min(1, Math.max(0, v));
+        if(layer.outputGain && audioCtx){
+          applyLayerOutputLevel(layer, layer.muted ? 0 : layer.volume);
+        }
+      },
+      setMuted: function(bool){
+        layer.muted = !!bool;
+        if(layer.outputGain && audioCtx){
+          applyLayerOutputLevel(layer, layer.muted ? 0 : layer.volume);
+        }
+      },
+      start:function(){
+        if(running) return;
+        running = true;
+        scheduleLoop();
+      },
+      stop:function(){
+        running = false;
+        if(timer){ clearTimeout(timer); timer = null; }
+      },
+      setParam:function(name, value){
+        if(typeof params[name] !== "undefined") params[name] = value;
+      }
+    };
 
     var timer = null;
     var running = false;
@@ -269,10 +435,10 @@
           var panner = audioCtx.createStereoPanner();
           panner.pan.value = (Math.random()*2-1) * params.pan/100;
           gain.connect(panner);
-          panner.connect(grainBus);
+          panner.connect(layer.outputGain || grainBus);
           node = panner;
         } else {
-          gain.connect(grainBus);
+          gain.connect(layer.outputGain || grainBus);
         }
 
         src.connect(gain);
@@ -324,15 +490,16 @@
       gain.gain.setValueCurveAtTime(curve, startTime, outDur);
 
       var node = gain;
+      var destination = layer.outputGain || grainBus;
       if(audioCtx.createStereoPanner){
         var panner = audioCtx.createStereoPanner();
         var panSpread = params.pan/100;
         panner.pan.value = (Math.random()*2-1) * panSpread;
         gain.connect(panner);
-        panner.connect(grainBus);
+        panner.connect(destination);
         node = panner;
       } else {
-        gain.connect(grainBus);
+        gain.connect(destination);
       }
       src.connect(gain);
 
@@ -358,21 +525,7 @@
       timer = setTimeout(scheduleLoop, interval);
     }
 
-    return {
-      params: params,
-      start:function(){
-        if(running) return;
-        running = true;
-        scheduleLoop();
-      },
-      stop:function(){
-        running = false;
-        if(timer){ clearTimeout(timer); timer = null; }
-      },
-      setParam:function(name, value){
-        if(typeof params[name] !== "undefined") params[name] = value;
-      }
-    };
+    return layer;
   }
 
   function bindLayerAwareKnobs(){
@@ -388,18 +541,22 @@
 
   function initLayers(){
     var initialParams = layerParamsFromKnobs();
-    layers.A = createGrainLayer(null, initialParams);
-    layers.B = createGrainLayer(null, initialParams);
-    layers.C = createGrainLayer(null, initialParams);
+
+    layerNames.forEach(function(layerName){
+      var profile = getLayerProfile(layerName);
+      var layerParams = Object.assign({}, initialParams, {
+        size: profile.size,
+        density: profile.density,
+        jitter: profile.jitter
+      });
+      layers[layerName] = createGrainLayer(null, layerParams, layerName);
+      layers[layerName].name = layerLabel(layerName);
+    });
+
     bindLayerAwareKnobs();
     syncLayerSources();
+    renderMixerSidebar();
     syncKnobsFromActiveLayer();
-  }
-
-  if(layerTabs.length){
-    layerTabs.forEach(function(tab){
-      tab.addEventListener("click", function(){ setActiveLayer(tab.dataset.layer); });
-    });
   }
 
   document.getElementById("window-select").addEventListener("change", function(e){
@@ -556,6 +713,18 @@
     filter1.connect(filter2);
     filter2.connect(envGain);
     envGain.connect(masterGain);
+
+    layerNames.forEach(function(layerName){
+      var layer = layers[layerName];
+      if(!layer) return;
+      if(!layer.outputGain){
+        layer.outputGain = audioCtx.createGain();
+        layer.outputGain.gain.value = layer.volume;
+        layer.outputGain.connect(grainBus);
+      }
+      layer.setVolume(layer.volume);
+      layer.setMuted(layer.muted);
+    });
 
     reverbSend = audioCtx.createGain();
     reverbSend.gain.value = knobs.reverb.getValue()/100;
