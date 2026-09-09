@@ -853,8 +853,12 @@
       mixerSidebar.appendChild(strip);
 
       var looperWave = strip.querySelector(".mixer-looper-wave");
-      if(looperWave){
-        drawLoopTrimWaveform(layer, looperWave);
+      if(looperWave) {
+        requestAnimationFrame(function(){
+          if(strip.isConnected){
+            drawLoopTrimWaveform(layer, strip.querySelector(".mixer-looper-wave"));
+          }
+        });
       }
     });
   }
