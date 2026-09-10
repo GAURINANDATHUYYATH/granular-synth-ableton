@@ -341,10 +341,22 @@
     display:none; background:var(--bg-panel); border-color:var(--border);
     padding:10px 10px 8px;
   }
-  body.perform-mode .controls > .group:nth-child(1),
-  body.perform-mode .controls > .group:nth-child(2),
-  body.perform-mode .controls > .group:nth-child(5){
+  body.perform-mode .controls > .group-grain,
+  body.perform-mode .controls > .group-fm,
+  body.perform-mode .controls > .group-filter{
     display:block;
+  }
+  body.perform-mode .source-wave-card,
+  body.perform-mode .controls{
+    width:100%;
+  }
+  body.perform-mode .source-wave-card{
+    grid-template-columns:minmax(0, 1.35fr) minmax(250px, .8fr);
+  }
+  body.perform-mode .controls > .group-grain,
+  body.perform-mode .controls > .group-fm,
+  body.perform-mode .controls > .group-filter{
+    min-width:0;
   }
   body.perform-mode .controls > .group .group-title{
     margin-bottom:10px; font-size:10px; letter-spacing:.12em;
