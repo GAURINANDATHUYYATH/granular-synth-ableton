@@ -26,7 +26,7 @@
   }
   .app{ width:100%; max-width:960px; }
   body.perform-mode .app{
-    display:flex; flex-direction:column; min-height:0;
+    display:flex; flex-direction:row; flex-wrap:wrap; align-items:flex-start; column-gap:12px; min-height:0;
   }
 
   .topbar{
@@ -348,10 +348,14 @@
   }
   body.perform-mode .source-wave-card,
   body.perform-mode .controls{
-    width:100%;
+    width:auto;
   }
   body.perform-mode .source-wave-card{
+    flex:0 1 40%;
     grid-template-columns:minmax(0, 1.35fr) minmax(250px, .8fr);
+  }
+  body.perform-mode .controls{
+    flex:1 1 0; min-width:0;
   }
   body.perform-mode .controls > .group-grain,
   body.perform-mode .controls > .group-fm,
@@ -383,6 +387,16 @@
   body.perform-mode .source-wave-card .seg-unit{ width:112px; }
   body.perform-mode .source-wave-card .seg-unit.wide{ width:160px; }
   body.perform-mode .source-wave-card .knob-value{ font-size:10px; }
+
+  @media (max-width:720px){
+    body.perform-mode .source-wave-card,
+    body.perform-mode .controls{
+      flex-basis:100%;
+    }
+    body.perform-mode .source-wave-card{
+      grid-template-columns:minmax(0, 1fr);
+    }
+  }
 
   .documentation{
     margin-top:40px; padding:24px 26px; background:var(--bg-panel);
