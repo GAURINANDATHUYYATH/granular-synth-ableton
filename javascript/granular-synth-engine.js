@@ -190,6 +190,8 @@
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     }
+
+    renderMixerSidebar();
   }
 
   function getLayerProfile(layerName){
@@ -756,6 +758,170 @@
     if(!mixerSidebar) return;
     mixerSidebar.innerHTML = "";
 
+    if(uiMode === "perform"){
+      renderPerformModeMixerSidebar();
+      return;
+    }
+
+    renderPatchModeMixerSidebar();
+  }
+
+  function renderPatchModeMixerSidebar(){
+    var modeWrap = document.createElement("div");
+    modeWrap.className = "mixer-mode-strip";
+
+    var modeSeg = document.createElement("div");
+    modeSeg.className = "seg mixer-mode-seg";
+
+    ["patch", "perform"].forEach(function(mode){
+      var modeBtn = document.createElement("button");
+      modeBtn.type = "button";
+      modeBtn.className = "seg-btn" + (mode === uiMode ? " active" : "");
+      modeBtn.dataset.uiMode = mode;
+      modeBtn.textContent = mode.toUpperCase();
+      modeBtn.addEventListener("click", function(){
+        setUiMode(mode);
+      });
+      modeSeg.appendChild(modeBtn);
+    });
+
+    modeWrap.appendChild(modeSeg);
+    mixerSidebar.appendChild(modeWrap);
+
+    var tabStrip = document.createElement("div");
+    tabStrip.className = "mixer-layer-tab-strip";
+
+    layerNames.forEach(function(name){
+      var layer = layers[name];
+      if(!layer) return;
+
+      var looper = ensureLayerLooper(name);
+      var tab = document.createElement("div");
+      tab.className = "mixer-layer-tab" + (name === activeLayer ? " active" : "");
+      tab.dataset.layer = name;
+      tab.setAttribute("role", "button");
+      tab.setAttribute("tabindex", "0");
+
+      var info = document.createElement("div");
+      info.className = "mixer-layer-tab-info";
+
+      var label = document.createElement("div");
+      label.className = "mixer-layer-name";
+      label.textContent = layer.name || layerLabel(name);
+
+      var sourceWrap = document.createElement("div");
+      sourceWrap.className = "mixer-layer-source-wrap";
+
+      var sourceText = document.createElement("span");
+      sourceText.className = "mixer-layer-source";
+      var sourceRef = layer.params.source;
+      sourceText.textContent = sourceRef ? (sourceRef.name || sourceRef.id || "Source") : "— empty —";
+
+      var sourceSelect = document.createElement("select");
+      sourceSelect.className = "mixer-layer-source-select";
+      sourceSelect.setAttribute("aria-label", "Assign source for " + layerLabel(name));
+
+      var emptyOpt = document.createElement("option");
+      emptyOpt.value = "";
+      emptyOpt.textContent = "—";
+      sourceSelect.appendChild(emptyOpt);
+
+      sources.forEach(function(source){
+        var opt = document.createElement("option");
+        opt.value = source.id;
+        opt.textContent = source.name;
+        sourceSelect.appendChild(opt);
+      });
+      sourceSelect.value = sourceRef ? sourceRef.id : "";
+      sourceSelect.addEventListener("change", function(e){
+        e.stopPropagation();
+        var selectedId = sourceSelect.value;
+        layer.sourceIsManual = true;
+        layer.params.source = selectedId ? sources.find(function(source){ return source.id === selectedId; }) || null : null;
+        renderMixerSidebar();
+      });
+
+      sourceWrap.appendChild(sourceText);
+      sourceWrap.appendChild(sourceSelect);
+
+      info.appendChild(label);
+      info.appendChild(sourceWrap);
+
+      var actions = document.createElement("div");
+      actions.className = "mixer-layer-actions";
+
+      var looperBtn = document.createElement("button");
+      looperBtn.type = "button";
+      looperBtn.className = "mixer-layer-looper-trigger";
+      looperBtn.textContent = looper.expanded ? "LOOP ▾" : "LOOP ▸";
+      looperBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        setLayerLooperExpanded(name, !looper.expanded);
+        renderMixerSidebar();
+      });
+
+      var muteBtn = document.createElement("button");
+      muteBtn.type = "button";
+      muteBtn.className = "mixer-layer-mute" + (layer.muted ? " muted" : "");
+      muteBtn.textContent = layer.muted ? "UNMUTE" : "MUTE";
+      muteBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        layer.setMuted(!layer.muted);
+        renderMixerSidebar();
+      });
+
+      actions.appendChild(looperBtn);
+      actions.appendChild(muteBtn);
+
+      tab.appendChild(info);
+      tab.appendChild(actions);
+
+      tab.addEventListener("click", function(e){
+        if(e.target.closest(".mixer-layer-source-select, .mixer-layer-mute, .mixer-layer-looper-trigger")) return;
+        setActiveLayer(name);
+      });
+
+      tab.addEventListener("keydown", function(e){
+        if(e.key === "Enter" || e.key === " "){
+          e.preventDefault();
+          setActiveLayer(name);
+        }
+      });
+
+      tabStrip.appendChild(tab);
+    });
+
+    mixerSidebar.appendChild(tabStrip);
+
+    var panelWrap = document.createElement("div");
+    panelWrap.className = "mixer-layer-looper-panels";
+
+    layerNames.forEach(function(name){
+      var layer = layers[name];
+      if(!layer) return;
+      var looper = ensureLayerLooper(name);
+      if(!looper.expanded) return;
+
+      var panel = buildLayerLooperHTML(name, layer);
+      panel.classList.add("mixer-layer-looper-panel");
+      panelWrap.appendChild(panel);
+
+      var wave = panel.querySelector(".mixer-looper-wave");
+      if(wave){
+        requestAnimationFrame(function(){
+          if(panel.isConnected){
+            drawLoopTrimWaveform(layer, wave);
+          }
+        });
+      }
+    });
+
+    if(panelWrap.children.length){
+      mixerSidebar.appendChild(panelWrap);
+    }
+  }
+
+  function renderPerformModeMixerSidebar(){
     var modeWrap = document.createElement("div");
     modeWrap.className = "mixer-mode-strip";
 
