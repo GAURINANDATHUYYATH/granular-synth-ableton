@@ -163,13 +163,6 @@
   var windowShape = "hann";
   var activeLayer = "A";
   var uiMode = "patch";
-  var phaseThemes = {
-    arrival: { bg: "#12181c", accent: "#d9b872", accent2: "#5fb8b0" },
-    playfulness: { bg: "#10191f", accent: "#e8c14a", accent2: "#6fd0c4" },
-    storm: { bg: "#0a0a0d", accent: "#8b8fa3", accent2: "#4a4e5e" },
-    clearing: { bg: "#14181d", accent: "#d9a25f", accent2: "#6bb0a8" },
-    sunset: { bg: "#1a120e", accent: "#e8843d", accent2: "#c96b5f" }
-  };
   var suppressLayerSync = false;
   var NUM_LAYERS = 6;
   var layerNames = ["A", "B", "C", "D", "E", "F"];
@@ -194,21 +187,6 @@
     for(var i=0; i<buttons.length; i++){
       var btn = buttons[i];
       var active = btn.dataset.uiMode === uiMode;
-      btn.classList.toggle("active", active);
-      btn.setAttribute("aria-pressed", active ? "true" : "false");
-    }
-  }
-
-  function setPhaseTheme(name){
-    var theme = phaseThemes[name] || phaseThemes.arrival;
-    document.documentElement.style.setProperty("--bg", theme.bg);
-    document.documentElement.style.setProperty("--accent", theme.accent);
-    document.documentElement.style.setProperty("--accent-2", theme.accent2);
-
-    var buttons = document.querySelectorAll("[data-phase]");
-    for(var i=0; i<buttons.length; i++){
-      var btn = buttons[i];
-      var active = btn.dataset.phase === name;
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     }
@@ -778,6 +756,27 @@
     if(!mixerSidebar) return;
     mixerSidebar.innerHTML = "";
 
+    var modeWrap = document.createElement("div");
+    modeWrap.className = "mixer-mode-strip";
+
+    var modeSeg = document.createElement("div");
+    modeSeg.className = "seg mixer-mode-seg";
+
+    ["patch", "perform"].forEach(function(mode){
+      var modeBtn = document.createElement("button");
+      modeBtn.type = "button";
+      modeBtn.className = "seg-btn" + (mode === uiMode ? " active" : "");
+      modeBtn.dataset.uiMode = mode;
+      modeBtn.textContent = mode.toUpperCase();
+      modeBtn.addEventListener("click", function(){
+        setUiMode(mode);
+      });
+      modeSeg.appendChild(modeBtn);
+    });
+
+    modeWrap.appendChild(modeSeg);
+    mixerSidebar.appendChild(modeWrap);
+
     layerNames.forEach(function(name){
       var layer = layers[name];
       if(!layer) return;
@@ -1244,19 +1243,38 @@
 
   initLayers();
   setUiMode(uiMode);
-  setPhaseTheme("arrival");
 
-  document.querySelectorAll("[data-ui-mode]").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      setUiMode(btn.dataset.uiMode);
-    });
-  });
+  var logoSlot = document.getElementById("logo-slot");
+  var logoImg = document.getElementById("logo-img");
+  var logoUpload = document.getElementById("logo-upload");
+  var logoPlaceholder = document.getElementById("logo-placeholder");
 
-  document.querySelectorAll("[data-phase]").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      setPhaseTheme(btn.dataset.phase);
+  if(logoSlot && logoUpload){
+    logoSlot.addEventListener("click", function(){
+      logoUpload.click();
     });
-  });
+    logoSlot.addEventListener("keydown", function(e){
+      if(e.key === "Enter" || e.key === " "){
+        e.preventDefault();
+        logoUpload.click();
+      }
+    });
+    logoUpload.addEventListener("change", function(e){
+      var file = e.target.files && e.target.files[0];
+      if(!file) return;
+      var reader = new FileReader();
+      reader.onload = function(evt){
+        if(logoImg){
+          logoImg.src = evt.target.result;
+          logoImg.style.display = "block";
+        }
+        if(logoSlot){ logoSlot.classList.add("has-image"); }
+        if(logoPlaceholder){ logoPlaceholder.style.display = "none"; }
+      };
+      reader.readAsDataURL(file);
+      logoUpload.value = "";
+    });
+  }
 
   document.getElementById("scanmode-seg").addEventListener("click", function(e){
     var btn = e.target.closest(".seg-btn");

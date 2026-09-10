@@ -11,11 +11,10 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 26 26" focusable="false">
-          <path d="M18.9 15.6c-1.9 2.3-5.1 3.7-8.3 3.3-3.5-.4-6.3-3.3-6.3-6.9 0-3.9 3.2-7.1 7.1-7.1 4.1 0 7.1 3.1 7.1 7.1 0 3.9-3.1 7.1-7.1 7.1-3.4 0-6.2-2.3-6.6-5.6"/>
-        </svg>
-      </span>
+      <div class="brand-mark" id="logo-slot" role="button" tabindex="0" aria-label="Upload logo image">
+        <img id="logo-img" alt="Custom logo" style="display:none">
+        <span id="logo-placeholder" class="logo-placeholder" aria-hidden="true">+</span>
+      </div>
       <h1>THARANGA</h1>
     </div>
     <div class="file-info">
@@ -26,19 +25,6 @@
       <label for="master-volume">OUT</label>
       <input type="range" id="master-volume" min="0" max="100" value="70">
     </div>
-    <div class="topbar-controls">
-      <div class="seg topbar-mode" aria-label="UI mode">
-        <button class="seg-btn active" data-ui-mode="patch" type="button">PATCH</button>
-        <button class="seg-btn" data-ui-mode="perform" type="button">PERFORM</button>
-      </div>
-      <div class="seg phase-switcher" aria-label="Visual phase theme">
-        <button class="seg-btn active" data-phase="arrival" type="button">ARRIVAL</button>
-        <button class="seg-btn" data-phase="playfulness" type="button">PLAYFULNESS</button>
-        <button class="seg-btn" data-phase="storm" type="button">STORM</button>
-        <button class="seg-btn" data-phase="clearing" type="button">CLEARING</button>
-        <button class="seg-btn" data-phase="sunset" type="button">SUNSET</button>
-      </div>
-    </div>
   </header>
 
   <div class="sources-bar">
@@ -47,6 +33,7 @@
     <button id="mic-btn" class="bar-btn mic" type="button">🎤 LIVE MIC</button>
     <div id="chips" class="chips"></div>
     <input type="file" id="file-input" accept="audio/*" multiple hidden>
+    <input type="file" id="logo-upload" accept="image/*" hidden>
   </div>
   <div class="sources-hint">click a source to include or exclude it from the mix · the ring around a chip means it's live</div>
 
