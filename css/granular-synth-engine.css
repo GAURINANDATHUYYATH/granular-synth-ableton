@@ -24,10 +24,14 @@
   body.perform-mode{
     padding-bottom:120px;
   }
-  .app{ width:100%; max-width:960px; }
+  .app{ width:100%; max-width:min(94vw, 1400px); }
   body.perform-mode .app{
-    display:flex; flex-direction:row; flex-wrap:wrap; align-items:flex-start; column-gap:12px; min-height:0;
+    display:grid; grid-template-columns:minmax(320px, 40%) minmax(0, 1fr);
+    grid-template-areas:"topbar topbar" "source controls" "transport controls";
+    gap:12px;
+    align-items:start; min-height:0;
   }
+  body.perform-mode .topbar{ grid-area:topbar; }
 
   .topbar{
     display:flex; align-items:center; justify-content:space-between; gap:16px;
@@ -130,7 +134,7 @@
 
   .transport{ display:flex; align-items:center; gap:16px; padding:16px 2px 4px; flex-wrap:wrap; }
   body.perform-mode .transport{
-    flex:1; justify-content:center; padding:0; margin-top:0;
+    grid-area:transport; flex:none; justify-content:flex-start; padding:0; margin-top:0;
   }
   .play-btn{
     font-size:13px; font-weight:600; letter-spacing:.06em; padding:10px 22px; border-radius:8px;
@@ -348,14 +352,14 @@
   }
   body.perform-mode .source-wave-card,
   body.perform-mode .controls{
-    width:auto;
+    width:100%;
   }
   body.perform-mode .source-wave-card{
-    flex:0 1 40%;
+    grid-area:source;
     grid-template-columns:minmax(0, 1.35fr) minmax(250px, .8fr);
   }
   body.perform-mode .controls{
-    flex:1 1 0; min-width:0;
+    grid-area:controls; min-width:0;
   }
   body.perform-mode .controls > .group-grain,
   body.perform-mode .controls > .group-fm,
@@ -389,9 +393,13 @@
   body.perform-mode .source-wave-card .knob-value{ font-size:10px; }
 
   @media (max-width:720px){
+    body.perform-mode .app{
+      grid-template-columns:minmax(0, 1fr);
+      grid-template-areas:"topbar" "source" "transport" "controls";
+    }
     body.perform-mode .source-wave-card,
     body.perform-mode .controls{
-      flex-basis:100%;
+      grid-column:auto;
     }
     body.perform-mode .source-wave-card{
       grid-template-columns:minmax(0, 1fr);
