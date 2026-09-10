@@ -26,12 +26,8 @@
   }
   .app{ width:100%; max-width:min(94vw, 1400px); }
   body.perform-mode .app{
-    display:grid; grid-template-columns:minmax(320px, 40%) minmax(0, 1fr);
-    grid-template-areas:"topbar topbar" "source controls" "transport controls";
-    gap:12px;
-    align-items:start; min-height:0;
+    display:flex; flex-direction:column; min-height:100vh; gap:12px;
   }
-  body.perform-mode .topbar{ grid-area:topbar; }
 
   .topbar{
     display:flex; align-items:center; justify-content:space-between; gap:16px;
@@ -134,7 +130,7 @@
 
   .transport{ display:flex; align-items:center; gap:16px; padding:16px 2px 4px; flex-wrap:wrap; }
   body.perform-mode .transport{
-    grid-area:transport; flex:none; justify-content:flex-start; padding:0; margin-top:0;
+    flex:none; justify-content:flex-start; padding:0; margin-top:0;
   }
   .play-btn{
     font-size:13px; font-weight:600; letter-spacing:.06em; padding:10px 22px; border-radius:8px;
@@ -208,8 +204,8 @@
     padding:8px;
   }
   body.perform-mode .mixer-sidebar{
-    position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
-    width:min(98vw, 1360px); margin-top:0; padding:8px 10px; border:1px solid var(--border);
+    position:static; left:auto; bottom:auto; transform:none;
+    width:100%; margin-top:auto; padding:8px 10px; border:1px solid var(--border);
     border-radius:12px; background:var(--bg-panel); box-shadow:0 16px 32px rgba(0,0,0,.18);
     display:flex; flex-direction:row; gap:8px; align-items:stretch;
   }
@@ -354,12 +350,15 @@
   body.perform-mode .controls{
     width:100%;
   }
-  body.perform-mode .source-wave-card{
-    grid-area:source;
+  body.perform-mode .perform-top-row{
+    display:flex; flex:0 0 auto; align-items:flex-start; gap:16px; flex-wrap:wrap; width:100%;
+  }
+  body.perform-mode .perform-top-row .source-wave-card{
+    flex:0 1 40%; min-width:320px; margin-top:0;
     grid-template-columns:minmax(0, 1.35fr) minmax(250px, .8fr);
   }
-  body.perform-mode .controls{
-    grid-area:controls; min-width:0;
+  body.perform-mode .perform-top-row .controls{
+    flex:1 1 0; min-width:0; margin-top:0;
   }
   body.perform-mode .controls > .group-grain,
   body.perform-mode .controls > .group-fm,
@@ -393,16 +392,10 @@
   body.perform-mode .source-wave-card .knob-value{ font-size:10px; }
 
   @media (max-width:720px){
-    body.perform-mode .app{
+    body.perform-mode .perform-top-row .source-wave-card,
+    body.perform-mode .perform-top-row .controls{
       grid-template-columns:minmax(0, 1fr);
-      grid-template-areas:"topbar" "source" "transport" "controls";
-    }
-    body.perform-mode .source-wave-card,
-    body.perform-mode .controls{
-      grid-column:auto;
-    }
-    body.perform-mode .source-wave-card{
-      grid-template-columns:minmax(0, 1fr);
+      flex-basis:100%;
     }
   }
 

@@ -168,6 +168,12 @@
   var layerNames = ["A", "B", "C", "D", "E", "F"];
   var layers = {};
   var mixerSidebar = document.getElementById("mixer-sidebar");
+  var appShell = document.querySelector(".app");
+  var sourceWaveCard = document.querySelector(".source-wave-card");
+  var controlsPanel = document.querySelector(".controls");
+  var transport = document.querySelector(".transport");
+  var documentation = document.querySelector(".documentation");
+  var performTopRow = null;
   var LOOP_MAX_SECONDS = 45;
   var LOOP_FADE_MS = 24;
 
@@ -182,6 +188,23 @@
   function setUiMode(mode){
     uiMode = mode === "perform" ? "perform" : "patch";
     document.body.classList.toggle("perform-mode", uiMode === "perform");
+
+    if(uiMode === "perform"){
+      if(!performTopRow){
+        performTopRow = document.createElement("div");
+        performTopRow.className = "perform-top-row";
+      }
+      if(!performTopRow.parentElement) appShell.insertBefore(performTopRow, transport);
+      performTopRow.appendChild(sourceWaveCard);
+      performTopRow.appendChild(controlsPanel);
+      appShell.appendChild(mixerSidebar);
+    }else{
+      appShell.insertBefore(sourceWaveCard, transport);
+      appShell.appendChild(controlsPanel);
+      if(documentation) appShell.insertBefore(controlsPanel, documentation);
+      appShell.insertBefore(mixerSidebar, controlsPanel);
+      if(performTopRow && performTopRow.parentElement) performTopRow.parentElement.removeChild(performTopRow);
+    }
 
     var buttons = document.querySelectorAll("[data-ui-mode]");
     for(var i=0; i<buttons.length; i++){
