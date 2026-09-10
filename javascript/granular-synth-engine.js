@@ -767,27 +767,6 @@
   }
 
   function renderPatchModeMixerSidebar(){
-    var modeWrap = document.createElement("div");
-    modeWrap.className = "mixer-mode-strip";
-
-    var modeSeg = document.createElement("div");
-    modeSeg.className = "seg mixer-mode-seg";
-
-    ["patch", "perform"].forEach(function(mode){
-      var modeBtn = document.createElement("button");
-      modeBtn.type = "button";
-      modeBtn.className = "seg-btn" + (mode === uiMode ? " active" : "");
-      modeBtn.dataset.uiMode = mode;
-      modeBtn.textContent = mode.toUpperCase();
-      modeBtn.addEventListener("click", function(){
-        setUiMode(mode);
-      });
-      modeSeg.appendChild(modeBtn);
-    });
-
-    modeWrap.appendChild(modeSeg);
-    mixerSidebar.appendChild(modeWrap);
-
     var tabStrip = document.createElement("div");
     tabStrip.className = "mixer-layer-tab-strip";
 
@@ -875,6 +854,9 @@
 
       tab.appendChild(info);
       tab.appendChild(actions);
+      if(looper.expanded){
+        tab.appendChild(buildLayerLooperHTML(name, layer));
+      }
 
       tab.addEventListener("click", function(e){
         if(e.target.closest(".mixer-layer-source-select, .mixer-layer-mute, .mixer-layer-looper-trigger")) return;
@@ -892,57 +874,9 @@
     });
 
     mixerSidebar.appendChild(tabStrip);
-
-    var panelWrap = document.createElement("div");
-    panelWrap.className = "mixer-layer-looper-panels";
-
-    layerNames.forEach(function(name){
-      var layer = layers[name];
-      if(!layer) return;
-      var looper = ensureLayerLooper(name);
-      if(!looper.expanded) return;
-
-      var panel = buildLayerLooperHTML(name, layer);
-      panel.classList.add("mixer-layer-looper-panel");
-      panelWrap.appendChild(panel);
-
-      var wave = panel.querySelector(".mixer-looper-wave");
-      if(wave){
-        requestAnimationFrame(function(){
-          if(panel.isConnected){
-            drawLoopTrimWaveform(layer, wave);
-          }
-        });
-      }
-    });
-
-    if(panelWrap.children.length){
-      mixerSidebar.appendChild(panelWrap);
-    }
   }
 
   function renderPerformModeMixerSidebar(){
-    var modeWrap = document.createElement("div");
-    modeWrap.className = "mixer-mode-strip";
-
-    var modeSeg = document.createElement("div");
-    modeSeg.className = "seg mixer-mode-seg";
-
-    ["patch", "perform"].forEach(function(mode){
-      var modeBtn = document.createElement("button");
-      modeBtn.type = "button";
-      modeBtn.className = "seg-btn" + (mode === uiMode ? " active" : "");
-      modeBtn.dataset.uiMode = mode;
-      modeBtn.textContent = mode.toUpperCase();
-      modeBtn.addEventListener("click", function(){
-        setUiMode(mode);
-      });
-      modeSeg.appendChild(modeBtn);
-    });
-
-    modeWrap.appendChild(modeSeg);
-    mixerSidebar.appendChild(modeWrap);
-
     layerNames.forEach(function(name){
       var layer = layers[name];
       if(!layer) return;
@@ -1406,6 +1340,13 @@
   var wanderTimer = 0;                          // seconds until wander mode picks a new target
   var scanHistory = [];          // recent {t, p} samples of the scanned position, for the mini indicator
   var SCAN_HISTORY_WINDOW = 4000; // how many ms of trail the indicator shows
+
+  var uiModeButtons = document.querySelectorAll("[data-ui-mode]");
+  for(var i=0; i<uiModeButtons.length; i++){
+    uiModeButtons[i].addEventListener("click", function(){
+      setUiMode(this.dataset.uiMode);
+    });
+  }
 
   initLayers();
   setUiMode(uiMode);
